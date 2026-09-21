@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const UUID_SESSION =
   /\/session\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -80,6 +80,68 @@ test("start meeting writes local transcript and end clears it", async ({
   await expect(page.getByRole("main").getByRole("img")).toHaveCount(0);
 });
 
+test("named meeting root stays the meeting name and sits near the canvas center", async ({
+  page,
+}) => {
+  await mockCaptureMedia(page);
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill("test");
+  await page.getByRole("button", { name: "はじめる" }).click();
+  await expect(page).toHaveURL(UUID_SESSION);
+
+  await page.getByRole("button", { name: "会議を開始" }).click();
+  await expect
+    .poll(async () => readMeetingRecords(page))
+    .toContain("# test");
+
+  const svg = page.getByRole("main").getByRole("img");
+  const root = svg.getByText("test", { exact: true });
+  await expect(root).toBeVisible();
+  await expect.poll(async () => rootBand(svg, root)).toBe("centered");
+
+  await page.evaluate(() => {
+    const key = Object.keys(localStorage).find((item) =>
+      item.startsWith("reqlogue.meeting."),
+    );
+    if (key === undefined) {
+      return;
+    }
+    const record = JSON.parse(localStorage.getItem(key) ?? "{}") as {
+      name: string;
+    };
+    record.name = "〇〇の要件定義会議";
+    localStorage.setItem(key, JSON.stringify(record));
+    window.dispatchEvent(new Event("reqlogue-meeting-change"));
+  });
+
+  await expect
+    .poll(async () => readMeetingRecords(page))
+    .toContain("# 〇〇の要件定義会議");
+  await expect(svg.getByText("test", { exact: true })).toHaveCount(0);
+  const renamed = svg.getByText("〇〇の要件定義会議", { exact: true });
+  await expect(renamed).toBeVisible();
+  await expect.poll(async () => rootBand(svg, renamed)).toBe("centered");
+  expect(await readMeetingRecords(page)).toContain("- 要件");
+});
+
+test("blank meeting name does not invent a mindmap title", async ({ page }) => {
+  await mockCaptureMedia(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "はじめる" }).click();
+  await expect(page).toHaveURL(UUID_SESSION);
+  await page.getByRole("button", { name: "会議を開始" }).click();
+  await expect
+    .poll(async () => readMeetingRecords(page))
+    .toContain("- 要件");
+  const records = await readMeetingRecords(page);
+  expect(records).toContain(String.raw`"#\n\n- 要件"`);
+  expect(records).not.toContain("# 会議");
+  await expect(page.getByRole("heading")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("img").getByText("会議")).toHaveCount(
+    0,
+  );
+});
+
 test("starting a new meeting clears the previous record", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill("旧会議");
@@ -119,6 +181,19 @@ async function mockCaptureMedia(page: Page) {
     navigator.mediaDevices.getDisplayMedia = fakeStream;
     navigator.mediaDevices.getUserMedia = fakeStream;
   });
+}
+
+async function rootBand(svg: Locator, root: Locator) {
+  const canvas = await svg.boundingBox();
+  const title = await root.boundingBox();
+  if (canvas === null || title === null || canvas.width === 0) {
+    return "unmeasured";
+  }
+  const ratio = (title.x + title.width / 2 - canvas.x) / canvas.width;
+  if (ratio > 0.4 && ratio < 0.7) {
+    return "centered";
+  }
+  return ratio.toFixed(3);
 }
 
 async function readMeetingKeys(page: Page) {
