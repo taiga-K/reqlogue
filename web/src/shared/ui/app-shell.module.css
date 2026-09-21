@@ -1,0 +1,45 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: 0 1.5rem 2rem;
+  background: var(--background);
+}
+
+@media (min-width: 48rem) {
+  .shell {
+    padding-inline: 2.5rem;
+  }
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-block: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.home {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+}
+
+.home:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.mark {
+  display: block;
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}

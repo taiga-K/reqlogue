@@ -1,22 +1,34 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
+import { draftOf, meetingHref } from "@/shared/model";
 import { Button } from "@/shared/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
-import { draftOf } from "../model/meetingNameDraft";
 import styles from "./MeetingNameForm.module.css";
 
 const FIELD_ID = "meeting-name";
 
 export function MeetingNameForm() {
+  const router = useRouter();
   const [raw, setRaw] = useState("");
   const draft = draftOf(raw);
 
   function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    // TODO(session-api): submit stays inert until a start-session command exists.
+    switch (draft.status) {
+      case "blank":
+        return;
+      case "ready":
+        router.push(meetingHref(draft.name));
+        return;
+      default: {
+        const _exhaustive: never = draft;
+        return _exhaustive;
+      }
+    }
   }
 
   return (
