@@ -1,26 +1,13 @@
 import Image from "next/image";
 import wordmark from "@/shared/ui/reqlogue-illustrated-wordmark.webp";
-import type { SessionMeeting } from "../model/sessionMeeting";
 import styles from "./SessionHeader.module.css";
 
 type SessionHeaderProps = {
-  readonly meeting: SessionMeeting;
+  readonly name: string;
 };
 
-export function SessionHeader({ meeting }: SessionHeaderProps) {
-  let heading: string | null;
-  switch (meeting.status) {
-    case "blank":
-      heading = null;
-      break;
-    case "named":
-      heading = meeting.name;
-      break;
-    default: {
-      const _exhaustive: never = meeting;
-      return _exhaustive;
-    }
-  }
+export function SessionHeader({ name }: SessionHeaderProps) {
+  const heading = name.trim().length === 0 ? null : name;
 
   return (
     <header className={styles["banner"]}>

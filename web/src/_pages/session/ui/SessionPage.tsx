@@ -1,45 +1,29 @@
 import type { Metadata } from "next";
-import {
-  SESSION_NAME_PARAM,
-  sessionMeetingFromParam,
-} from "../model/sessionMeeting";
-import { SessionHeader } from "./SessionHeader";
+import { notFound } from "next/navigation";
+import { parseMeetingId } from "@/entities/meeting";
+import { SessionWorkspace } from "./SessionWorkspace";
 import styles from "./SessionPage.module.css";
 
 type SessionPageProps = {
-  readonly searchParams: Promise<{
-    readonly [key: string]: string | string[] | undefined;
+  readonly params: Promise<{
+    readonly meetingId: string;
   }>;
 };
 
-export async function generateMetadata({
-  searchParams,
-}: SessionPageProps): Promise<Metadata> {
-  const meeting = sessionMeetingFromParam(
-    (await searchParams)[SESSION_NAME_PARAM],
-  );
-
-  switch (meeting.status) {
-    case "blank":
-      return {};
-    case "named":
-      return { title: `${meeting.name} · reqlogue` };
-    default: {
-      const _exhaustive: never = meeting;
-      return _exhaustive;
-    }
-  }
+export function generateMetadata(): Metadata {
+  return {};
 }
 
-export async function SessionPage({ searchParams }: SessionPageProps) {
-  const meeting = sessionMeetingFromParam(
-    (await searchParams)[SESSION_NAME_PARAM],
-  );
+export async function SessionPage({ params }: SessionPageProps) {
+  const { meetingId } = await params;
+  const id = parseMeetingId(meetingId);
+  if (id === null) {
+    notFound();
+  }
 
   return (
     <div className={styles["page"]}>
-      <SessionHeader meeting={meeting} />
-      <main className={styles["main"]} />
+      <SessionWorkspace meetingId={id} />
     </div>
   );
 }
