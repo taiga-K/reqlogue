@@ -32,13 +32,7 @@ export function isFillerOnly(speech: string): boolean {
 }
 
 export function unsentSlice(transcript: string, offset: number): string {
-  let start = offset;
-  if (start < 0) {
-    start = 0;
-  }
-  if (start < transcript.length && transcript[start] === "\n") {
-    start += 1;
-  }
+  const start = skipLeadingNewline(transcript, offset);
   if (start >= transcript.length) {
     return "";
   }
@@ -50,11 +44,23 @@ export function offsetAfterPrefix(
   from: number,
   prefix: string,
 ): number {
-  let next = from + prefix.length;
+  const start = skipLeadingNewline(transcript, from);
+  let next = start + prefix.length;
   if (next < transcript.length && transcript[next] === "\n") {
     next += 1;
   }
   return next;
+}
+
+function skipLeadingNewline(transcript: string, offset: number): number {
+  let start = offset;
+  if (start < 0) {
+    start = 0;
+  }
+  if (start < transcript.length && transcript[start] === "\n") {
+    start += 1;
+  }
+  return start;
 }
 
 export type SendMode = "quiet" | "crossed" | "force";

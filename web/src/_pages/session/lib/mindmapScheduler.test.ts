@@ -5,6 +5,7 @@ import {
   type MeetingRecord,
 } from "@/entities/meeting";
 import { createMindmapScheduler } from "./mindmapScheduler";
+import { unsentSlice } from "../model/mindmapUpdate";
 
 type Call = {
   previousMarkdown: string;
@@ -206,6 +207,56 @@ describe("createMindmapScheduler", () => {
     await flush();
     expect(record.sentTranscriptOffset).toBe(record.transcript.length);
     expect(record.mindmapMarkdown).toBe("# 会議\n\n- ログイン\n- パスワード");
+    scheduler.stop();
+  });
+
+  it("later quiet speech sends only the new delta after the saved offset", async () => {
+    const clock = fakeClock();
+    let record: MeetingRecord | null = createMeetingRecord(meetingId, "会議");
+    const held = holdUpdate();
+    const scheduler = createMindmapScheduler({
+      meetingId,
+      read: () => record,
+      save: (markdown, sentTranscriptOffset) => {
+        if (record === null) {
+          return;
+        }
+        record = { ...record, mindmapMarkdown: markdown, sentTranscriptOffset };
+      },
+      update: held.update,
+      clock,
+    });
+    record = {
+      ...record,
+      transcript: "2026-09-21T16:00:00.000Z ログインはメール",
+    };
+    scheduler.notify();
+    clock.advance(1500);
+    await flush();
+    await held.resolve("# 会議\n\n- ログイン");
+    await flush();
+    await flush();
+    record = {
+      ...record,
+      transcript: `${record.transcript}\n2026-09-21T16:00:03.000Z パスワードも`,
+    };
+    scheduler.notify();
+    clock.advance(1500);
+    await flush();
+    expect(held.calls).toEqual([
+      {
+        previousMarkdown: "",
+        transcriptDelta: "ログインはメール",
+      },
+      {
+        previousMarkdown: "# 会議\n\n- ログイン",
+        transcriptDelta: "パスワードも",
+      },
+    ]);
+    await held.resolve("# 会議\n\n- ログイン\n- パスワード");
+    await flush();
+    expect(record.sentTranscriptOffset).toBe(record.transcript.length);
+    expect(unsentSlice(record.transcript, record.sentTranscriptOffset)).toBe("");
     scheduler.stop();
   });
 

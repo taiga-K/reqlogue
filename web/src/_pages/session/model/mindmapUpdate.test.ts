@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isFillerOnly,
+  offsetAfterPrefix,
   speechFromTranscript,
   takeSendablePrefix,
   unsentSlice,
@@ -47,5 +48,19 @@ describe("takeSendablePrefix", () => {
     const unsent = `${longLine}\n${nextLine}`;
     expect(takeSendablePrefix(unsent, "crossed")).toBe(longLine);
     expect(unsentSlice(unsent, longLine.length)).toBe(nextLine);
+  });
+});
+
+describe("offsetAfterPrefix", () => {
+  it("advances past a newline that unsentSlice skipped", () => {
+    const first = "2026-09-21T16:00:00.000Z ログインはメール";
+    const second = "2026-09-21T16:00:02.000Z パスワードも";
+    const transcript = `${first}\n${second}`;
+    const prefix = unsentSlice(transcript, first.length);
+    expect(prefix).toBe(second);
+    expect(offsetAfterPrefix(transcript, first.length, prefix)).toBe(
+      transcript.length,
+    );
+    expect(unsentSlice(transcript, transcript.length)).toBe("");
   });
 });
