@@ -28,3 +28,23 @@ class MindmapResponse(BaseModel):
 class UnavailableResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     status: Literal["unavailable"]
+
+
+class AdviceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    meeting_id: str = Field(alias="meetingId", min_length=1)
+    transcript_delta: str = Field(alias="transcriptDelta")
+    notified_themes: list[str] = Field(alias="notifiedThemes")
+
+
+class AdviceItemResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str
+    reason: str
+    suggestedQuestion: str
+    quote: str
+
+
+class AdviceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    items: list[AdviceItemResponse]

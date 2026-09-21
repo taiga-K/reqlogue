@@ -60,6 +60,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Unavailable"
+  /v1/advice:
+    post:
+      operationId: analyzeAdvice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdviceAnalysis"
+      responses:
+        "200":
+          description: At most two advice items from the new transcript
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdviceBatch"
+        "503":
+          description: Advice analyzer is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Unavailable"
 components:
   schemas:
     Health:
@@ -96,6 +118,43 @@ components:
       properties:
         markdown:
           type: string
+    AdviceAnalysis:
+      type: object
+      additionalProperties: false
+      required: [meetingId, transcriptDelta, notifiedThemes]
+      properties:
+        meetingId:
+          type: string
+          minLength: 1
+        transcriptDelta:
+          type: string
+        notifiedThemes:
+          type: array
+          items:
+            type: string
+    AdviceItem:
+      type: object
+      additionalProperties: false
+      required: [title, reason, suggestedQuestion, quote]
+      properties:
+        title:
+          type: string
+        reason:
+          type: string
+        suggestedQuestion:
+          type: string
+        quote:
+          type: string
+    AdviceBatch:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 2
+          items:
+            $ref: "#/components/schemas/AdviceItem"
     Unavailable:
       type: object
       additionalProperties: false

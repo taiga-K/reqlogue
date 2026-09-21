@@ -2,12 +2,21 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from reqlogue_api.application.analyze_advice import analyze_advice
 from reqlogue_api.application.transcribe import transcribe_audio
 from reqlogue_api.application.update_mindmap import update_mindmap
+from reqlogue_api.domain.advice import AdviceAnalysis
 from reqlogue_api.domain.mindmap import MindmapUpdate
 from reqlogue_api.main.config import Settings, load_settings
-from reqlogue_api.main.ioc import build_mindmap_generator, build_transcriber
+from reqlogue_api.main.ioc import (
+    build_advice_analyzer,
+    build_mindmap_generator,
+    build_transcriber,
+)
 from reqlogue_api.presentation.http.schemas import (
+    AdviceItemResponse,
+    AdviceRequest,
+    AdviceResponse,
     HealthResponse,
     MindmapResponse,
     MindmapUpdateRequest,
@@ -24,10 +33,15 @@ class MindmapUnavailableError(Exception):
     pass
 
 
+class AdviceUnavailableError(Exception):
+    pass
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings if settings is not None else load_settings()
     transcriber = build_transcriber(resolved)
     mindmap_generator = build_mindmap_generator(resolved)
+    advice_analyzer = build_advice_analyzer(resolved)
     app = FastAPI(title="reqlogue API", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
@@ -62,6 +76,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise MindmapUnavailableError from error
         return MindmapResponse(markdown=markdown.value)
 
+    @app.post("/v1/advice", response_model=AdviceResponse)
+    async def post_advice(body: AdviceRequest) -> AdviceResponse:
+        analysis = AdviceAnalysis(
+            meeting_id=body.meeting_id,
+            transcript_delta=body.transcript_delta,
+            notified_themes=tuple(body.notified_themes),
+        )
+        try:
+            batch = await analyze_advice(advice_analyzer, analysis)
+        except Exception as error:
+            raise AdviceUnavailableError from error
+        return AdviceResponse(
+            items=[
+                AdviceItemResponse(
+                    title=item.title,
+                    reason=item.reason,
+                    suggestedQuestion=item.suggested_question,
+                    quote=item.quote,
+                )
+                for item in batch.items
+            ]
+        )
+
     @app.exception_handler(TranscriberUnavailableError)
     async def unavailable_handler(
         _request: Request,
@@ -74,6 +111,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def mindmap_unavailable_handler(
         _request: Request,
         _error: MindmapUnavailableError,
+    ) -> JSONResponse:
+        payload = UnavailableResponse(status="unavailable")
+        return JSONResponse(status_code=503, content=payload.model_dump())
+
+    @app.exception_handler(AdviceUnavailableError)
+    async def advice_unavailable_handler(
+        _request: Request,
+        _error: AdviceUnavailableError,
     ) -> JSONResponse:
         payload = UnavailableResponse(status="unavailable")
         return JSONResponse(status_code=503, content=payload.model_dump())

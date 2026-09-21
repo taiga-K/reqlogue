@@ -1,0 +1,44 @@
+.rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 0.5rem;
+  width: 5.75rem;
+  padding: 0.75rem 0.5rem;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.5rem 0.25rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: #242322;
+  font: inherit;
+  font-size: 0.625rem;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+
+.item[aria-pressed="true"] {
+  background: #fde8e6;
+}
+
+.item:hover {
+  background: #f6f1ec;
+}
+
+.item[aria-pressed="true"]:hover {
+  background: #fde8e6;
+}
+
+.item:focus-visible {
+  outline: 2px solid #f26f67;
+  outline-offset: 2px;
+}
