@@ -435,4 +435,76 @@ describe("createMindmapScheduler", () => {
     await flush();
     expect(held.calls).toHaveLength(2);
   });
+
+  it("restores the meeting name after the model renames the root", async () => {
+    const clock = fakeClock();
+    let record: MeetingRecord | null = createMeetingRecord(meetingId, "test");
+    const held = holdUpdate();
+    const scheduler = createMindmapScheduler({
+      meetingId,
+      read: () => record,
+      save: (markdown, sentTranscriptOffset) => {
+        if (record === null) {
+          return;
+        }
+        record = { ...record, mindmapMarkdown: markdown, sentTranscriptOffset };
+      },
+      update: held.update,
+      clock,
+    });
+    record = {
+      ...record,
+      transcript: "2026-09-21T16:00:00.000Z ログインはメール",
+    };
+    scheduler.notify();
+    clock.advance(1500);
+    await flush();
+    await held.resolve("# モデルの題\n\n- ログイン");
+    await flush();
+    expect(record.mindmapMarkdown).toBe("# test\n\n- ログイン");
+
+    record = {
+      ...record,
+      name: "〇〇の要件定義会議",
+      transcript: `${record.transcript}\n2026-09-21T16:00:03.000Z パスワードも`,
+    };
+    scheduler.notify();
+    clock.advance(1500);
+    await flush();
+    await held.resolve("# 別の題\n\n- ログイン\n- パスワード");
+    await flush();
+    expect(record.mindmapMarkdown).toBe(
+      "# 〇〇の要件定義会議\n\n- ログイン\n- パスワード",
+    );
+    scheduler.stop();
+  });
+
+  it("keeps an empty root when the meeting name is blank", async () => {
+    const clock = fakeClock();
+    let record: MeetingRecord | null = createMeetingRecord(meetingId, "");
+    const held = holdUpdate();
+    const scheduler = createMindmapScheduler({
+      meetingId,
+      read: () => record,
+      save: (markdown, sentTranscriptOffset) => {
+        if (record === null) {
+          return;
+        }
+        record = { ...record, mindmapMarkdown: markdown, sentTranscriptOffset };
+      },
+      update: held.update,
+      clock,
+    });
+    record = {
+      ...record,
+      transcript: "2026-09-21T16:00:00.000Z ログインはメール",
+    };
+    scheduler.notify();
+    clock.advance(1500);
+    await flush();
+    await held.resolve("# 会議\n\n- ログイン");
+    await flush();
+    expect(record.mindmapMarkdown).toBe("#\n\n- ログイン");
+    scheduler.stop();
+  });
 });
