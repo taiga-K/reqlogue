@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HomeHeader } from "./HomeHeader";
+import styles from "./HomePage.module.css";
 
 export const metadata: Metadata = {
   title: "reqlogue",
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 
 export function HomePage() {
   return (
-    <div>
+    <div className={styles["page"]}>
       <HomeHeader />
       <main />
     </div>

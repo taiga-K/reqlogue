@@ -19,6 +19,14 @@ export function HomeHeader() {
         priority
         className={styles["mark"]}
       />
+      <div className={styles["rule"]} aria-hidden="true">
+        <span className={styles["ruleLine"]} />
+        <span className={styles["ruleDots"]}>
+          <span />
+          <span />
+          <span />
+        </span>
+      </div>
     </header>
   );
 }
