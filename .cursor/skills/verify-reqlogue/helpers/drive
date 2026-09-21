@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib.sh"
+
+if [[ $# -lt 1 ]]; then
+  cat <<'EOF' >&2
+Usage:
+  .cursor/skills/verify-reqlogue/helpers/drive home-start
+  .cursor/skills/verify-reqlogue/helpers/drive session-banner
+  .cursor/skills/verify-reqlogue/helpers/drive meeting-capture
+  .cursor/skills/verify-reqlogue/helpers/drive transcription-api
+EOF
+  exit 2
+fi
+
+FEATURE="$1"
+shift
+
+if ! RUN_ID="$(resolve_run_id)"; then
+  echo "drive: no current verification run. Launch first." >&2
+  exit 1
+fi
+
+load_meta "$RUN_ID"
+
+if ! doctor_output="$("$SCRIPT_DIR/doctor")"; then
+  printf '%s\n' "$doctor_output" >&2
+  echo "drive: doctor failed; refusing to drive." >&2
+  exit 1
+fi
+printf '%s\n' "$doctor_output"
+
+export REQLOGUE_VERIFY_RUN_ID
+export REQLOGUE_VERIFY_WEB_URL
+export REQLOGUE_VERIFY_API_URL
+export REQLOGUE_VERIFY_EVIDENCE_DIR
+export REQLOGUE_VERIFY_WITH_API
+export REQLOGUE_VERIFY_REPO_ROOT
+export REQLOGUE_VERIFY_META="$(meta_file_for "$RUN_ID")"
+export REQLOGUE_VERIFY_FEATURE="$FEATURE"
+
+cd "$REQLOGUE_VERIFY_REPO_ROOT/web"
+if ! pnpm exec playwright --version >/dev/null 2>&1; then
+  echo "drive: Playwright is missing from web/node_modules." >&2
+  exit 1
+fi
+pnpm exec playwright install chromium >/dev/null
+exec pnpm exec node "$SCRIPT_DIR/drive.mjs" "$FEATURE" "$@"
