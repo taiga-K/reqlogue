@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { disableMarkmapHtml } from "../lib/disableMarkmapHtml";
 import styles from "./SessionMindmap.module.css";
 
 type SessionMindmapProps = {
@@ -23,7 +24,9 @@ export function SessionMindmap({ markdown }: SessionMindmapProps) {
         if (cancelled || svgRef.current === null) {
           return;
         }
-        const { root } = new Transformer().transform(frame);
+        const transformer = new Transformer();
+        disableMarkmapHtml(transformer);
+        const { root } = transformer.transform(frame);
         const markmap = Markmap.create(svg, undefined, root);
         void markmap.fit();
         destroy = () => {

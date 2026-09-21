@@ -46,7 +46,10 @@ function flush(): Promise<void> {
 
 function holdUpdate() {
   const calls: Call[] = [];
-  const waits: ((markdown: string) => void)[] = [];
+  const waits: {
+    resolve: (markdown: string) => void;
+    reject: (error: Error) => void;
+  }[] = [];
   return {
     calls,
     update: async (input: {
@@ -58,8 +61,8 @@ function holdUpdate() {
         previousMarkdown: input.previousMarkdown,
         transcriptDelta: input.transcriptDelta,
       });
-      return new Promise<string>((resolve) => {
-        waits.push(resolve);
+      return new Promise<string>((resolve, reject) => {
+        waits.push({ resolve, reject });
       });
     },
     resolve(markdown: string) {
@@ -67,7 +70,15 @@ function holdUpdate() {
       if (wait === undefined) {
         throw new Error("no in-flight update");
       }
-      wait(markdown);
+      wait.resolve(markdown);
+      return flush();
+    },
+    fail() {
+      const wait = waits.shift();
+      if (wait === undefined) {
+        throw new Error("no in-flight update");
+      }
+      wait.reject(new Error("mindmap unavailable"));
       return flush();
     },
   };
@@ -376,5 +387,52 @@ describe("createMindmapScheduler", () => {
       },
     ]);
     scheduler.stop();
+  });
+
+  it("retries a failed update after 20s and does not retry after stop", async () => {
+    const clock = fakeClock();
+    let record: MeetingRecord | null = createMeetingRecord(meetingId, "会議");
+    const held = holdUpdate();
+    const scheduler = createMindmapScheduler({
+      meetingId,
+      read: () => record,
+      save: (markdown, sentTranscriptOffset) => {
+        if (record === null) {
+          return;
+        }
+        record = { ...record, mindmapMarkdown: markdown, sentTranscriptOffset };
+      },
+      update: held.update,
+      clock,
+    });
+    record = {
+      ...record,
+      transcript: "2026-09-21T16:00:00.000Z ログインはメール",
+    };
+    scheduler.notify();
+    clock.advance(1500);
+    await flush();
+    expect(held.calls).toHaveLength(1);
+    await held.fail();
+    await flush();
+    expect(held.calls).toHaveLength(1);
+    clock.advance(20_000);
+    await flush();
+    expect(held.calls).toEqual([
+      {
+        previousMarkdown: "",
+        transcriptDelta: "ログインはメール",
+      },
+      {
+        previousMarkdown: "",
+        transcriptDelta: "ログインはメール",
+      },
+    ]);
+    scheduler.stop();
+    await held.fail();
+    await flush();
+    clock.advance(20_000);
+    await flush();
+    expect(held.calls).toHaveLength(2);
   });
 });

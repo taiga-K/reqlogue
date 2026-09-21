@@ -64,7 +64,10 @@ def markdown_from_chat(raw: str) -> str:
     content = message.get("content")
     if not isinstance(content, str) or content.strip() == "":
         raise MindmapGenerateError("invalid mindmap response")
-    return strip_fence(content)
+    markdown = strip_fence(content)
+    if markdown == "":
+        raise MindmapGenerateError("invalid mindmap response")
+    return markdown
 
 
 def strip_fence(content: str) -> str:

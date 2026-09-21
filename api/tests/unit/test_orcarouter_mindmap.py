@@ -98,4 +98,6 @@ def test_markdown_strips_a_fence_and_rejects_empty_content() -> None:
     assert markdown_from_chat(fenced) == "# 会議\n\n- 枝"
     with pytest.raises(Exception, match="invalid mindmap response"):
         markdown_from_chat(chat_body("   "))
+    with pytest.raises(Exception, match="invalid mindmap response"):
+        markdown_from_chat(chat_body("```markdown\n```"))
     assert strip_fence("# 会議") == "# 会議"

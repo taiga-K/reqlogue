@@ -47,6 +47,7 @@ export function createMindmapScheduler(options: SchedulerOptions): {
     quietTimer: null as unknown,
     boundaryTimer: null as unknown,
     inFlight: false,
+    stopped: false,
     sending: Promise.resolve(),
   };
 
@@ -123,6 +124,9 @@ export function createMindmapScheduler(options: SchedulerOptions): {
       options.save(markdown, offsetAfterPrefix(latest.transcript, sentFrom, prefix));
       sent = true;
     } catch {
+      if (!live.stopped) {
+        armBoundary(prefix);
+      }
       return;
     } finally {
       live.inFlight = false;
@@ -198,6 +202,7 @@ export function createMindmapScheduler(options: SchedulerOptions): {
   }
 
   function stop() {
+    live.stopped = true;
     abort.abort();
     clearTimers();
   }
