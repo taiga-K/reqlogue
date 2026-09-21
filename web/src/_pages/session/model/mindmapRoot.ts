@@ -46,7 +46,8 @@ function firstRootHeading(lines: readonly string[]): number {
 
 function rootHeading(meetingName: string): string {
   if (meetingName.trim().length === 0) {
-    return "#";
+    // markmap drops an empty heading that has one child.
+    return "# \u200b";
   }
   const label = meetingName.replace(/\r\n|\r|\n/g, " ");
   return `# ${label}`;

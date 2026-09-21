@@ -504,7 +504,7 @@ describe("createMindmapScheduler", () => {
     await flush();
     await held.resolve("# 会議\n\n- ログイン");
     await flush();
-    expect(record.mindmapMarkdown).toBe("#\n\n- ログイン");
+    expect(record.mindmapMarkdown).toBe("# \u200b\n\n- ログイン");
     scheduler.stop();
   });
 });

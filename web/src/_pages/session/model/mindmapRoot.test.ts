@@ -1,3 +1,4 @@
+import { Transformer } from "markmap-lib";
 import { describe, expect, it } from "vitest";
 import { pinMindmapRoot } from "./mindmapRoot";
 
@@ -22,8 +23,17 @@ describe("pinMindmapRoot", () => {
   });
 
   it("uses an empty root when the meeting name is blank", () => {
-    expect(pinMindmapRoot("# 会議\n\n- 要件", "")).toBe("#\n\n- 要件");
-    expect(pinMindmapRoot("# 無題\n\n- 要件", "   ")).toBe("#\n\n- 要件");
+    expect(pinMindmapRoot("# 会議\n\n- 要件", "")).toBe("# \u200b\n\n- 要件");
+    expect(pinMindmapRoot("# 無題\n\n- 要件", "   ")).toBe("# \u200b\n\n- 要件");
+  });
+
+  it("keeps a blank root when the map has one branch", () => {
+    const { root } = new Transformer().transform(
+      pinMindmapRoot("# 会議\n\n- 要件", ""),
+    );
+    expect(root.children).toHaveLength(1);
+    expect(root.content).toBe("&#x200b;");
+    expect(root.children[0]?.content).toBe("&#x8981;&#x4ef6;");
   });
 
   it("adds a root when the model omits a heading", () => {

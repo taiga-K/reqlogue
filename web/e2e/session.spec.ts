@@ -134,7 +134,7 @@ test("blank meeting name does not invent a mindmap title", async ({ page }) => {
     .poll(async () => readMeetingRecords(page))
     .toContain("- 要件");
   const records = await readMeetingRecords(page);
-  expect(records).toContain(String.raw`"#\n\n- 要件"`);
+  expect(records).toContain(`"# \u200b\\n\\n- 要件"`);
   expect(records).not.toContain("# 会議");
   await expect(page.getByRole("heading")).toHaveCount(0);
   await expect(page.getByRole("main").getByRole("img").getByText("会議")).toHaveCount(
