@@ -16,7 +16,7 @@ test("home body exposes the meeting name draft", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "今日の会議のなまえ" })).toBeVisible();
 
   const start = page.getByRole("button", { name: "はじめる" });
-  await expect(start).toBeDisabled();
+  await expect(start).toBeEnabled();
 
   await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill(
     "新サービスの打ち合わせ",

@@ -1,0 +1,65 @@
+openapi: 3.1.0
+info:
+  title: reqlogue API
+  version: 0.1.0
+servers:
+  - url: http://127.0.0.1:8000
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: Process is up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /v1/transcription:
+    post:
+      operationId: transcribeAudio
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Completed transcript text for the audio turn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transcript"
+        "503":
+          description: Transcriber is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Unavailable"
+components:
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    Transcript:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text:
+          type: string
+    Unavailable:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [unavailable]
