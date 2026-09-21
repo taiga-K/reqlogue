@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { disableMarkmapHtml } from "../lib/disableMarkmapHtml";
+import { useEffect, useRef, useState } from "react";
+import { createSessionMarkmapHost, type SessionMarkmapHost } from "../lib/sessionMarkmapHost";
+import { SCALE_MAX, SCALE_MIN } from "../model/mindmapCamera";
+import { MindmapZoomToolbar } from "./MindmapZoomToolbar";
 import styles from "./SessionMindmap.module.css";
 
 type SessionMindmapProps = {
@@ -10,43 +12,59 @@ type SessionMindmapProps = {
 
 export function SessionMindmap({ markdown }: SessionMindmapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const hostRef = useRef<SessionMarkmapHost | null>(null);
+  const [scale, setScale] = useState(1);
   const frame = markdown.trim();
+  const hasDocument = frame.length > 0;
 
   useEffect(() => {
-    const svg = svgRef.current;
-    if (svg === null || frame.length === 0) {
+    if (!hasDocument) {
       return;
     }
-    let cancelled = false;
-    let destroy: (() => void) | undefined;
-    void Promise.all([import("markmap-lib"), import("markmap-view")]).then(
-      ([{ Transformer }, { Markmap }]) => {
-        if (cancelled || svgRef.current === null) {
-          return;
-        }
-        const transformer = new Transformer();
-        disableMarkmapHtml(transformer);
-        const { root } = transformer.transform(frame);
-        const markmap = Markmap.create(svg, undefined, root);
-        void markmap.fit();
-        destroy = () => {
-          markmap.destroy();
-        };
-      },
-    );
+    const svg = svgRef.current;
+    if (svg === null) {
+      return;
+    }
+    const host = createSessionMarkmapHost(svg);
+    hostRef.current = host;
+    const unsubscribe = host.subscribe(() => {
+      setScale(host.readScale());
+    });
     return () => {
-      cancelled = true;
-      destroy?.();
+      unsubscribe();
+      host.dispose();
+      hostRef.current = null;
     };
-  }, [frame]);
+  }, [hasDocument]);
 
-  if (frame.length === 0) {
+  useEffect(() => {
+    if (!hasDocument) {
+      return;
+    }
+    hostRef.current?.replaceDocument(frame);
+  }, [frame, hasDocument]);
+
+  if (!hasDocument) {
     return null;
   }
 
   return (
     <div className={styles["frame"]}>
       <svg ref={svgRef} className={styles["svg"]} role="img" />
+      <MindmapZoomToolbar
+        zoomInEnabled={scale < SCALE_MAX}
+        zoomOutEnabled={scale > SCALE_MIN}
+        fitEnabled
+        onZoomIn={() => {
+          hostRef.current?.command({ type: "zoom-in" });
+        }}
+        onZoomOut={() => {
+          hostRef.current?.command({ type: "zoom-out" });
+        }}
+        onFit={() => {
+          hostRef.current?.command({ type: "fit" });
+        }}
+      />
     </div>
   );
 }
