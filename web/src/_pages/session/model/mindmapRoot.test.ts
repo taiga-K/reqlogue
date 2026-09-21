@@ -30,6 +30,20 @@ describe("pinMindmapRoot", () => {
     expect(pinMindmapRoot("- ログイン", "test")).toBe("# test\n\n- ログイン");
   });
 
+  it("skips a hash line inside a fence and rewrites the real root", () => {
+    const markdown = "```\n# command\n```\n\n# モデルの題\n\n- ログイン";
+    expect(pinMindmapRoot(markdown, "test")).toBe(
+      "```\n# command\n```\n\n# test\n\n- ログイン",
+    );
+  });
+
+  it("keeps a fenced command when the root heading comes first", () => {
+    const markdown = "# モデルの題\n\n```\n# command\n```\n\n- ログイン";
+    expect(pinMindmapRoot(markdown, "test")).toBe(
+      "# test\n\n```\n# command\n```\n\n- ログイン",
+    );
+  });
+
   it("leaves an empty document empty", () => {
     expect(pinMindmapRoot("", "test")).toBe("");
     expect(pinMindmapRoot("  \n", "test")).toBe("  \n");
