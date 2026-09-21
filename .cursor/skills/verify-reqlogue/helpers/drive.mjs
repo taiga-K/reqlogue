@@ -98,11 +98,23 @@ async function withBrowser(run) {
   }
 }
 
+async function waitForBannerHeading(page, name) {
+  await page
+    .getByRole("banner")
+    .getByRole("heading", { name })
+    .waitFor({ state: "visible" });
+}
+
+async function waitForSessionShell(page) {
+  await page.getByRole("button", { name: "会議を開始" }).waitFor({ state: "visible" });
+}
+
 async function startNamedSession(page, name) {
   await page.goto(`${webUrl}/`);
   await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill(name);
   await page.getByRole("button", { name: "はじめる" }).click();
   await page.waitForURL(UUID_SESSION);
+  await waitForBannerHeading(page, name);
   const url = page.url();
   const meetingId = url.split("/").pop() ?? "";
   return { url, meetingId };
@@ -138,18 +150,12 @@ async function driveHomeStart(dir) {
     if (page.url().includes("meetingName")) {
       fail("session URL leaked the meetingName query");
     }
+    await waitForBannerHeading(page, "新サービスの打ち合わせ");
     const namedUrl = page.url();
     const namedId = namedUrl.split("/").pop() ?? "";
     const banner = page.getByRole("banner");
     if (!(await banner.getByRole("img", { name: "reqlogue" }).isVisible())) {
       fail("session wordmark missing");
-    }
-    if (
-      !(await banner
-        .getByRole("heading", { name: "新サービスの打ち合わせ" })
-        .isVisible())
-    ) {
-      fail("session heading missing after start");
     }
     const storedNamed = await meetingState(page);
     if (storedNamed.keys.length !== 1) {
@@ -168,6 +174,7 @@ async function driveHomeStart(dir) {
     await page.goto(`${webUrl}/`);
     await page.getByRole("button", { name: "はじめる" }).click();
     await page.waitForURL(UUID_SESSION);
+    await waitForSessionShell(page);
     const blankUrl = page.url();
     if ((await page.getByRole("heading").count()) !== 0) {
       fail("blank-name session must omit the heading");
@@ -192,9 +199,7 @@ async function driveHomeStart(dir) {
     await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill("新会議");
     await page.getByRole("button", { name: "はじめる" }).click();
     await page.waitForURL(UUID_SESSION);
-    if (!(await page.getByRole("heading", { name: "新会議" }).isVisible())) {
-      fail("replacement meeting heading missing");
-    }
+    await waitForBannerHeading(page, "新会議");
     const secondKeys = await meetingState(page);
     if (secondKeys.keys.length !== 1) {
       fail("replacement must leave exactly one meeting record");
@@ -203,6 +208,7 @@ async function driveHomeStart(dir) {
       fail("replacement reused the previous meeting storage key");
     }
     await page.goto(firstUrl);
+    await waitForSessionShell(page);
     if ((await page.getByRole("heading", { name: "旧会議" }).count()) !== 0) {
       fail("old meeting name survived replacement");
     }
@@ -230,6 +236,7 @@ async function driveHomeStart(dir) {
 async function driveSessionBanner(dir) {
   return withBrowser(async (page) => {
     const started = await startNamedSession(page, "新サービスの打ち合わせ");
+    await waitForBannerHeading(page, "新サービスの打ち合わせ");
     const banner = page.getByRole("banner");
     if ((await banner.getByRole("button").count()) !== 0) {
       fail("session banner must have no buttons");
@@ -248,6 +255,7 @@ async function driveSessionBanner(dir) {
     await page.goto(`${webUrl}/`);
     await page.getByRole("button", { name: "はじめる" }).click();
     await page.waitForURL(UUID_SESSION);
+    await waitForSessionShell(page);
     if ((await page.getByRole("heading").count()) !== 0) {
       fail("blank-name session must omit the heading");
     }
@@ -316,10 +324,11 @@ async function driveMeetingCapture(dir) {
     await installDeniedCapture(page);
     await startNamedSession(page, "権限のない会議");
     await page.getByRole("button", { name: "会議を開始" }).click();
-    const status = page.getByRole("status");
+    const deniedMessage = "画面とマイクの共有が必要です";
+    const status = page.getByRole("status").filter({ hasText: deniedMessage });
     await status.waitFor();
-    const message = (await status.textContent()) ?? "";
-    if (message !== "画面とマイクの共有が必要です") {
+    const message = ((await status.textContent()) ?? "").trim();
+    if (message !== deniedMessage) {
       fail(`expected permission-denied status, got ${JSON.stringify(message)}`);
     }
     if (!(await page.getByRole("button", { name: "会議を開始" }).isVisible())) {
@@ -343,7 +352,9 @@ async function driveTranscriptionApi(dir) {
       "unmet precondition: FastAPI was not launched. Re-run helpers/launch --with-api, then helpers/drive transcription-api.",
     );
   }
-  const healthRes = await fetch(`${apiUrl}/health`);
+  const healthRes = await fetch(`${apiUrl}/health`, {
+    signal: AbortSignal.timeout(15_000),
+  });
   const healthBody = await healthRes.text();
   if (healthRes.status !== 200 || healthBody !== '{"status":"ok"}') {
     fail(`GET /health failed: ${healthRes.status} ${healthBody}`);
@@ -352,6 +363,7 @@ async function driveTranscriptionApi(dir) {
     method: "POST",
     headers: { "Content-Type": "application/octet-stream" },
     body: Buffer.from([0, 1]),
+    signal: AbortSignal.timeout(15_000),
   });
   const transcribeJson = await transcribeRes.json();
   if (transcribeRes.status !== 200) {

@@ -5,7 +5,7 @@ description: Drive the reqlogue Next.js web app (primary) and FastAPI transcript
 
 # Verify reqlogue
 
-reqlogue is a meeting-hearing assistant. A user names a meeting on the Next.js home page, lands on `/session/<uuid>`, then starts tab+mic capture so FastAPI can transcribe audio. This skill drives that real path. The primary surface is the web app at an isolated `127.0.0.1` port. FastAPI is secondary: the browser talks only to FastAPI, never to OpenAI.
+reqlogue is a meeting-hearing assistant. A user names a meeting on the Next.js home page, lands on `/session/<uuid>`, then starts tab+mic capture. This skill drives that path. The primary surface is the web app at an isolated `127.0.0.1` port. On the live path the browser talks to FastAPI and never to OpenAI. The default launch sets `NEXT_PUBLIC_API_MOCKING=enabled`, so the browser uses the in-app stub and does not call FastAPI.
 
 Read `features/README.md` before driving. Prove the mapped entry points for the feature you claim, not a convenient substitute.
 
@@ -39,7 +39,7 @@ Overrides: `REQLOGUE_VERIFY_RUN_ID`, `REQLOGUE_VERIFY_WEB_PORT` (default `3317`)
 
 `NEXT_PUBLIC_API_MOCKING=enabled` makes `createTranscriber()` return the in-app stub that immediately appends `stub transcript`. That is the safe capture path. It does **not** exercise FastAPI. The HTTP contract is a separate feature (`transcription-api`). Do not treat a mocked capture as proof that `/v1/transcription` works.
 
-A second isolated instance can run if you pick a new `REQLOGUE_VERIFY_RUN_ID` and unused ports. Browser meeting records live in `localStorage` under `reqlogue.meeting.<id>` and are origin-scoped, so different ports do not share them. Do not double-drive one instance from two agents.
+A second isolated instance needs its own `REQLOGUE_VERIFY_BASE_DIR`. One base directory has a single `CURRENT` pointer, so a new run id and unused ports on that same directory are refused while a live run is current. Meeting records live in `localStorage` under `reqlogue.meeting.<id>` and are origin-scoped, so different ports do not share them. Do not double-drive one instance from two agents.
 
 Teardown is `helpers/cleanup` (see Cleanup). Launch also tears down an incomplete run if ready-check fails.
 
@@ -89,7 +89,7 @@ Prefer these stable handles from the running UI and `web/e2e/*.spec.ts`:
 | API health | `GET $API_URL/health` |
 | API transcribe | `POST $API_URL/v1/transcription` with `Content-Type: application/octet-stream` |
 
-`はじめる` is enabled on a blank name. Submit mints a UUID with `crypto.randomUUID()`, writes `reqlogue.meeting.<id>` after clearing every other `reqlogue.meeting.*` key, and `router.push`es `/session/<id>`. Reloading that URL is the persistence check: `SessionWorkspace` rereads `localStorage` and the banner heading returns.
+`はじめる` is enabled on a blank name. Submit mints a UUID with `crypto.randomUUID()`, writes `reqlogue.meeting.<id>` after clearing every other `reqlogue.meeting.*` key, and `router.push`es `/session/<id>`. Reloading that URL is the persistence check: `SessionWorkspace` rereads `localStorage` and the banner heading returns. The server snapshot is empty, so the heading is missing on the first paint; wait for it before asserting or screenshotting a named banner.
 
 Meeting capture needs the fake `getDisplayMedia` / `getUserMedia` streams from `web/e2e/session.spec.ts` (`helpers/drive meeting-capture` installs them). Without fakes the browser permission dialog blocks the agent. The session main column is empty: `stub transcript` is stored, not rendered. Visible proof is the button label flipping `会議を開始` ↔ `会議を終了`. Persistence proof is the `reqlogue.meeting.*` value containing `stub transcript`, then becoming empty after `会議を終了`.
 

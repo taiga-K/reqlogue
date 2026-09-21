@@ -35,4 +35,4 @@ Preconditions:
 - Stub mode never calls OpenAI. `OPENAI_API_KEY` is not required and must not be needed for this proof.
 - Empty PCM still returns `200` with `{"text":""}` from the domain rule; the recipe uses a non-empty body so the stub string appears.
 - CORS is not exercised by this curl/fetch path. Browser capture against a live API is a different proof and needs `NEXT_PUBLIC_API_MOCKING` unset at launch.
-- `503 {"status":"unavailable"}` means the openai transcriber failed. That is outside stub verification.
+- `503 {"status":"unavailable"}` means `transcribe_audio` raised. Any transcriber exception becomes that response, not only an OpenAI failure. Stub verification does not take this path.

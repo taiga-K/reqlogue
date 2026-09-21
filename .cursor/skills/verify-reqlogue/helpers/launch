@@ -64,24 +64,59 @@ if [[ -f "$META" ]]; then
   exit 1
 fi
 
-if ! port_is_free "$WEB_PORT"; then
+web_port_status=0
+port_is_free "$WEB_PORT" || web_port_status=$?
+if [[ "$web_port_status" -eq 2 ]]; then
+  echo "refuse: cannot inspect port $WEB_PORT." >&2
+  exit 1
+fi
+if [[ "$web_port_status" -ne 0 ]]; then
   echo "refuse: port $WEB_PORT is already listening. Pick REQLOGUE_VERIFY_WEB_PORT or stop that process." >&2
   echo "Never drive a shared instance on :3000 or Playwright e2e on :3217." >&2
   exit 1
 fi
-if [[ "$WITH_API" -eq 1 ]] && ! port_is_free "$API_PORT"; then
-  echo "refuse: port $API_PORT is already listening. Pick REQLOGUE_VERIFY_API_PORT or stop that process." >&2
-  exit 1
+if [[ "$WITH_API" -eq 1 ]]; then
+  api_port_status=0
+  port_is_free "$API_PORT" || api_port_status=$?
+  if [[ "$api_port_status" -eq 2 ]]; then
+    echo "refuse: cannot inspect port $API_PORT." >&2
+    exit 1
+  fi
+  if [[ "$api_port_status" -ne 0 ]]; then
+    echo "refuse: port $API_PORT is already listening. Pick REQLOGUE_VERIFY_API_PORT or stop that process." >&2
+    exit 1
+  fi
 fi
 
 mkdir -p "$RUN_DIR" "$EVIDENCE_DIR"
+
+API_PID=0
+WEB_PID=0
+LAUNCH_OK=0
+
+cleanup_on_fail() {
+  if [[ "$LAUNCH_OK" -eq 1 ]]; then
+    return 0
+  fi
+  echo "launch failed; tearing down this incomplete run $RUN_ID" >&2
+  if [[ "$WEB_PID" != "0" ]]; then
+    kill_tree "$WEB_PID" || true
+  fi
+  if [[ "$API_PID" != "0" ]]; then
+    kill_tree "$API_PID" || true
+  fi
+  rm -rf "$RUN_DIR"
+  if [[ -f "$CURRENT_FILE" ]] && [[ "$(tr -d '[:space:]' < "$CURRENT_FILE")" == "$RUN_ID" ]]; then
+    rm -f "$CURRENT_FILE"
+  fi
+}
+trap cleanup_on_fail EXIT
 
 if [[ ! -d "$REPO_ROOT/web/node_modules" ]]; then
   echo "installing web dependencies..."
   (cd "$REPO_ROOT/web" && pnpm install --frozen-lockfile)
 fi
 
-API_PID=0
 if [[ "$WITH_API" -eq 1 ]]; then
   if ! command -v uv >/dev/null 2>&1; then
     echo "refuse: uv is required for --with-api. Install uv, then retry." >&2
@@ -123,20 +158,6 @@ REQLOGUE_VERIFY_REPO_ROOT=$REPO_ROOT
 EOF
 
 printf '%s\n' "$RUN_ID" >"$CURRENT_FILE"
-
-cleanup_on_fail() {
-  echo "launch failed; tearing down this incomplete run $RUN_ID" >&2
-  kill_tree "$WEB_PID" || true
-  if [[ "$API_PID" != "0" ]]; then
-    kill_tree "$API_PID" || true
-  fi
-  rm -rf "$RUN_DIR"
-  if [[ -f "$CURRENT_FILE" ]] && [[ "$(tr -d '[:space:]' < "$CURRENT_FILE")" == "$RUN_ID" ]]; then
-    rm -f "$CURRENT_FILE"
-  fi
-}
-
-trap cleanup_on_fail ERR
 
 echo "waiting for web at $WEB_URL ..."
 web_ready=0
@@ -180,7 +201,7 @@ if [[ "$WITH_API" -eq 1 ]]; then
   fi
 fi
 
-trap - ERR
+LAUNCH_OK=1
 
 cat <<EOF
 launched run $RUN_ID

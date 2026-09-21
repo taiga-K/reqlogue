@@ -26,12 +26,12 @@ fi
 
 load_meta "$RUN_ID"
 
-if ! "$SCRIPT_DIR/doctor" >/tmp/reqlogue-verify-doctor.out; then
-  cat /tmp/reqlogue-verify-doctor.out >&2
+if ! doctor_output="$("$SCRIPT_DIR/doctor")"; then
+  printf '%s\n' "$doctor_output" >&2
   echo "drive: doctor failed; refusing to drive." >&2
   exit 1
 fi
-cat /tmp/reqlogue-verify-doctor.out
+printf '%s\n' "$doctor_output"
 
 export REQLOGUE_VERIFY_RUN_ID
 export REQLOGUE_VERIFY_WEB_URL

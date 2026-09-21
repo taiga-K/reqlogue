@@ -31,6 +31,7 @@ Preconditions:
 ## Gotchas
 
 - The heading is the meeting name, not a generic "Session" title. Assert the typed string.
+- That heading is absent on the first paint. Wait for it before the named screenshot.
 - An empty stored name and a missing stored record both omit the heading. Prove blank by actually submitting an empty home form in this run.
 - Capture chrome (`会議を開始`) sits outside the banner. Query `getByRole("banner")` before counting buttons.
 - Reloading a replaced meeting URL shows the blank banner because home start cleared the old record. That is `home-replace`, not a banner bug.

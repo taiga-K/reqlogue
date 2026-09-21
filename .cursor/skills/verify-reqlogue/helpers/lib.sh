@@ -56,6 +56,10 @@ pid_alive() {
 
 listening_pids() {
   local port="$1"
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "listening_pids: python3 is required" >&2
+    return 2
+  fi
   python3 - "$port" <<'PY'
 import os
 import sys
@@ -157,24 +161,29 @@ start_session() {
 port_owned_by_pid() {
   local owner="$1"
   local port="$2"
+  local listeners
   local pid
-  local found=0
+  if ! listeners="$(listening_pids "$port")"; then
+    echo "port_owned_by_pid: cannot inspect port $port" >&2
+    return 2
+  fi
   while read -r pid; do
     [[ -z "$pid" ]] && continue
-    found=1
     if pid_is_self_or_descendant "$owner" "$pid"; then
       return 0
     fi
-  done < <(listening_pids "$port")
-  if [[ "$found" -eq 0 ]]; then
-    return 1
-  fi
+  done <<<"$listeners"
   return 1
 }
 
 port_is_free() {
   local port="$1"
-  [[ -z "$(listening_pids "$port")" ]]
+  local listeners
+  if ! listeners="$(listening_pids "$port")"; then
+    echo "port_is_free: cannot inspect port $port" >&2
+    return 2
+  fi
+  [[ -z "$listeners" ]]
 }
 
 kill_tree() {

@@ -39,8 +39,12 @@ else
 fi
 
 if pid_alive "$REQLOGUE_VERIFY_WEB_PID"; then
-  if port_owned_by_pid "$REQLOGUE_VERIFY_WEB_PID" "$REQLOGUE_VERIFY_WEB_PORT"; then
+  web_owned=0
+  port_owned_by_pid "$REQLOGUE_VERIFY_WEB_PID" "$REQLOGUE_VERIFY_WEB_PORT" || web_owned=$?
+  if [[ "$web_owned" -eq 0 ]]; then
     ok "port $REQLOGUE_VERIFY_WEB_PORT is owned by the launched web tree"
+  elif [[ "$web_owned" -eq 2 ]]; then
+    fail "cannot inspect whether pid $REQLOGUE_VERIFY_WEB_PID owns port $REQLOGUE_VERIFY_WEB_PORT"
   else
     fail "port $REQLOGUE_VERIFY_WEB_PORT is not owned by pid $REQLOGUE_VERIFY_WEB_PID (refusing to drive a shared instance)"
   fi
@@ -66,8 +70,12 @@ if [[ "$REQLOGUE_VERIFY_WITH_API" == "1" ]]; then
     ok "api pid $REQLOGUE_VERIFY_API_PID is alive"
   fi
   if pid_alive "$REQLOGUE_VERIFY_API_PID"; then
-    if port_owned_by_pid "$REQLOGUE_VERIFY_API_PID" "$REQLOGUE_VERIFY_API_PORT"; then
+    api_owned=0
+    port_owned_by_pid "$REQLOGUE_VERIFY_API_PID" "$REQLOGUE_VERIFY_API_PORT" || api_owned=$?
+    if [[ "$api_owned" -eq 0 ]]; then
       ok "port $REQLOGUE_VERIFY_API_PORT is owned by the launched api tree"
+    elif [[ "$api_owned" -eq 2 ]]; then
+      fail "cannot inspect whether pid $REQLOGUE_VERIFY_API_PID owns port $REQLOGUE_VERIFY_API_PORT"
     else
       fail "port $REQLOGUE_VERIFY_API_PORT is not owned by pid $REQLOGUE_VERIFY_API_PID"
     fi
