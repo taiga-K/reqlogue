@@ -1,0 +1,76 @@
+.banner {
+  /* Default: lavender → pink → mint. Alternatives: cream #ffefd0 → #fceac7, blue #93e5fa → #b6f1f4. */
+  --wash-from: #edd7ff;
+  --wash-mid: #ecc7f0;
+  --wash-to: #b6f1f4;
+  --tile-w: 96px;
+  --tile-h: 96px;
+  --drift: 18s;
+  --mark-h: 4.5rem;
+
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  display: grid;
+  place-items: center start;
+  padding-block: 0.9rem;
+  padding-inline: 1.5rem;
+  background: linear-gradient(
+    120deg,
+    var(--wash-from) 0%,
+    var(--wash-mid) 48%,
+    var(--wash-to) 100%
+  );
+}
+
+.banner::before,
+.banner::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: calc(100% + var(--tile-w));
+  z-index: -1;
+  pointer-events: none;
+  background-repeat: repeat;
+  background-size: var(--tile-w) var(--tile-h);
+  animation: drift var(--drift) linear infinite;
+}
+
+.banner::before {
+  background-image: radial-gradient(
+    circle at 25% 25%,
+    rgb(255 255 255 / 0.55) 3px,
+    transparent 4px
+  );
+}
+
+.banner::after {
+  --tile-w: 148px;
+  --tile-h: 148px;
+  --drift: 31s;
+  background-image: radial-gradient(
+    circle at 70% 60%,
+    rgb(255 201 215 / 0.5) 5px,
+    transparent 6px
+  );
+  animation-direction: reverse;
+}
+
+@keyframes drift {
+  to {
+    transform: translateX(calc(-1 * var(--tile-w)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner::before,
+  .banner::after {
+    animation: none;
+  }
+}
+
+.mark {
+  block-size: var(--mark-h);
+  inline-size: auto;
+}
