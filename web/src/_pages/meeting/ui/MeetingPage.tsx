@@ -34,7 +34,7 @@ export async function MeetingPage({ searchParams }: MeetingPageProps) {
 
   switch (draft.status) {
     case "blank":
-      redirect("/");
+      return redirect("/");
     case "ready":
       return (
         <section className={styles["screen"]} aria-labelledby="meeting-title">
