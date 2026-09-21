@@ -9,6 +9,7 @@ export {
 } from "./model/meeting";
 export {
   appendMeetingTranscript,
+  saveMindmapProgress,
   clearAllMeetings,
   clearMeeting,
   ensureMeeting,

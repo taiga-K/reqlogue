@@ -51,11 +51,31 @@ describe("parseMeetingRecord", () => {
         name: "新サービス",
         transcript: "line",
         speaker: "nope",
+        mindmapMarkdown: "# 会議",
+        sentTranscriptOffset: 4,
       }),
     ).toEqual({
       id: "meet-1",
       name: "新サービス",
       transcript: "line",
+      mindmapMarkdown: "# 会議",
+      sentTranscriptOffset: 4,
+    });
+  });
+
+  it("defaults missing mindmap fields on older records", () => {
+    expect(
+      parseMeetingRecord(id, {
+        id: "meet-1",
+        name: "新サービス",
+        transcript: "line",
+      }),
+    ).toEqual({
+      id: "meet-1",
+      name: "新サービス",
+      transcript: "line",
+      mindmapMarkdown: "",
+      sentTranscriptOffset: 0,
     });
   });
 
@@ -64,6 +84,8 @@ describe("parseMeetingRecord", () => {
       id: "meet-1",
       name: "x",
       transcript: "",
+      mindmapMarkdown: "",
+      sentTranscriptOffset: 0,
     });
     expect(
       parseMeetingRecord(id, { id: "other", name: "", transcript: "" }),

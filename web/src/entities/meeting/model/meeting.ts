@@ -6,6 +6,8 @@ export type MeetingRecord = {
   readonly id: MeetingId;
   readonly name: string;
   readonly transcript: string;
+  readonly mindmapMarkdown: string;
+  readonly sentTranscriptOffset: number;
 };
 
 export function parseMeetingId(raw: string): MeetingId | null {
@@ -30,7 +32,13 @@ export function createMeetingRecord(
   id: MeetingId,
   name: string,
 ): MeetingRecord {
-  return { id, name, transcript: "" };
+  return {
+    id,
+    name,
+    transcript: "",
+    mindmapMarkdown: "",
+    sentTranscriptOffset: 0,
+  };
 }
 
 export function appendTranscriptLine(
@@ -65,5 +73,28 @@ export function parseMeetingRecord(
   if (!("transcript" in value) || typeof value.transcript !== "string") {
     return null;
   }
-  return { id, name: value.name, transcript: value.transcript };
+  const mindmapMarkdown =
+    "mindmapMarkdown" in value && typeof value.mindmapMarkdown === "string"
+      ? value.mindmapMarkdown
+      : "";
+  const sentTranscriptOffset = parseSentOffset(value);
+  return {
+    id,
+    name: value.name,
+    transcript: value.transcript,
+    mindmapMarkdown,
+    sentTranscriptOffset,
+  };
+}
+
+function parseSentOffset(value: object): number {
+  if (
+    !("sentTranscriptOffset" in value) ||
+    typeof value.sentTranscriptOffset !== "number" ||
+    !Number.isInteger(value.sentTranscriptOffset) ||
+    value.sentTranscriptOffset < 0
+  ) {
+    return 0;
+  }
+  return value.sentTranscriptOffset;
 }
