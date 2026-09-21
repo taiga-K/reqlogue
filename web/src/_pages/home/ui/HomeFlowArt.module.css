@@ -1,0 +1,57 @@
+/* Roles are exactly these six. No mascot logo, no wordmark, no flowers or circles. */
+
+.scene {
+  display: grid;
+  grid-template-areas:
+    "dots   speak     lines"
+    "arrows arrows    arrows"
+    ".      note      character";
+  grid-template-columns: 1fr 1.15fr 1fr;
+  align-items: end;
+  justify-items: center;
+  width: 100%;
+  max-width: 40rem;
+}
+
+.bubbleDots,
+.bubbleSpeak,
+.bubbleLines,
+.arrows,
+.note,
+.character {
+  display: block;
+  height: auto;
+}
+
+.bubbleDots {
+  grid-area: dots;
+  width: 118%;
+}
+
+.bubbleSpeak {
+  grid-area: speak;
+  width: 128%;
+}
+
+.bubbleLines {
+  grid-area: lines;
+  width: 118%;
+}
+
+.arrows {
+  grid-area: arrows;
+  width: 82%;
+  margin-block: -1.5rem;
+}
+
+.note {
+  grid-area: note;
+  width: 135%;
+  justify-self: end;
+}
+
+.character {
+  grid-area: character;
+  width: 125%;
+  justify-self: start;
+}
