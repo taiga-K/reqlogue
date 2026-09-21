@@ -15,12 +15,26 @@ export function MeetingNameForm() {
   const draft = draftOf(raw);
 
   function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    // TODO(session-api): submit stays inert until a start-session command exists.
+    switch (draft.status) {
+      case "blank":
+        event.preventDefault();
+        return;
+      case "ready":
+        return;
+      default: {
+        const _exhaustive: never = draft;
+        return _exhaustive;
+      }
+    }
   }
 
   return (
-    <form className={styles["form"]} onSubmit={handleSubmit}>
+    <form
+      className={styles["form"]}
+      action="/session"
+      method="get"
+      onSubmit={handleSubmit}
+    >
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor={FIELD_ID}>今日の会議のなまえ</FieldLabel>
