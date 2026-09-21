@@ -47,7 +47,6 @@ export function createMindmapScheduler(options: SchedulerOptions): {
     quietTimer: null as unknown,
     boundaryTimer: null as unknown,
     inFlight: false,
-    pendingAfterFlight: false,
     sending: Promise.resolve(),
   };
 
@@ -72,6 +71,25 @@ export function createMindmapScheduler(options: SchedulerOptions): {
     });
   }
 
+  function settleLeftover(transcriptLengthAtSend: number) {
+    const latest = options.read();
+    if (latest === null) {
+      return;
+    }
+    const leftover = unsentOf(latest);
+    if (leftover.length === 0) {
+      return;
+    }
+    if (latest.transcript.length > transcriptLengthAtSend) {
+      const next = takeSendablePrefix(leftover, "force");
+      if (next !== null) {
+        enqueueSend(next);
+      }
+      return;
+    }
+    notify();
+  }
+
   async function sendPrefix(prefix: string) {
     if (abort.signal.aborted || prefix.length === 0) {
       return;
@@ -81,7 +99,6 @@ export function createMindmapScheduler(options: SchedulerOptions): {
       return;
     }
     if (live.inFlight) {
-      live.pendingAfterFlight = true;
       return;
     }
     const record = options.read();
@@ -91,6 +108,8 @@ export function createMindmapScheduler(options: SchedulerOptions): {
     live.inFlight = true;
     clearTimers();
     const sentFrom = record.sentTranscriptOffset;
+    const transcriptLengthAtSend = record.transcript.length;
+    let sent = false;
     try {
       const markdown = await options.update({
         meetingId: options.meetingId,
@@ -102,20 +121,13 @@ export function createMindmapScheduler(options: SchedulerOptions): {
         return;
       }
       options.save(markdown, offsetAfterPrefix(latest.transcript, sentFrom, prefix));
+      sent = true;
     } catch {
       return;
     } finally {
       live.inFlight = false;
-      if (live.pendingAfterFlight) {
-        live.pendingAfterFlight = false;
-        const latest = options.read();
-        if (latest !== null) {
-          const leftover = unsentOf(latest);
-          const next = takeSendablePrefix(leftover, "force");
-          if (next !== null) {
-            enqueueSend(next);
-          }
-        }
+      if (sent && !abort.signal.aborted) {
+        settleLeftover(transcriptLengthAtSend);
       }
     }
   }
@@ -161,7 +173,6 @@ export function createMindmapScheduler(options: SchedulerOptions): {
       return;
     }
     if (live.inFlight) {
-      live.pendingAfterFlight = true;
       return;
     }
     if (isFillerOnly(speechFromTranscript(unsent))) {

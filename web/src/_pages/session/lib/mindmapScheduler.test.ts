@@ -278,4 +278,52 @@ describe("createMindmapScheduler", () => {
     ]);
     scheduler.stop();
   });
+
+  it("after a 200-letter cut, leftover waits 1.5s of quiet", async () => {
+    const clock = fakeClock();
+    let record: MeetingRecord | null = createMeetingRecord(meetingId, "会議");
+    const held = holdUpdate();
+    const scheduler = createMindmapScheduler({
+      meetingId,
+      read: () => record,
+      save: (markdown, sentTranscriptOffset) => {
+        if (record === null) {
+          return;
+        }
+        record = { ...record, mindmapMarkdown: markdown, sentTranscriptOffset };
+      },
+      update: held.update,
+      clock,
+    });
+    const longLine = `2026-09-21T16:00:00.000Z ${"あ".repeat(200)}`;
+    record = {
+      ...record,
+      transcript: `${longLine}\n2026-09-21T16:00:20.000Z 次の話題`,
+    };
+    scheduler.notify();
+    await flush();
+    expect(held.calls).toEqual([
+      {
+        previousMarkdown: "",
+        transcriptDelta: "あ".repeat(200),
+      },
+    ]);
+    await held.resolve("# 会議\n\n- 長い話");
+    await flush();
+    await flush();
+    expect(held.calls).toHaveLength(1);
+    clock.advance(1500);
+    await flush();
+    expect(held.calls).toEqual([
+      {
+        previousMarkdown: "",
+        transcriptDelta: "あ".repeat(200),
+      },
+      {
+        previousMarkdown: "# 会議\n\n- 長い話",
+        transcriptDelta: "次の話題",
+      },
+    ]);
+    scheduler.stop();
+  });
 });
