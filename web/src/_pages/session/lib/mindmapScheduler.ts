@@ -126,7 +126,7 @@ export function createMindmapScheduler(options: SchedulerOptions): {
       return;
     } finally {
       live.inFlight = false;
-      if (sent && !abort.signal.aborted) {
+      if (sent) {
         settleLeftover(transcriptLengthAtSend);
       }
     }
