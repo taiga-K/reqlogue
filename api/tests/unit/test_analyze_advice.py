@@ -122,5 +122,11 @@ def test_parser_keeps_at_most_two_items_and_accepts_an_empty_list() -> None:
     )
 
 
+def test_parser_strips_a_json_fence_on_one_line_or_many() -> None:
+    body = '{"items":[]}'
+    assert items_from_chat(chat_body(f"```json {body} ```")) == ()
+    assert items_from_chat(chat_body(f"```json\n{body}\n```")) == ()
+
+
 def test_stub_item_is_one_card() -> None:
     assert STUB_ADVICE_ITEM.title == "確認したい点"

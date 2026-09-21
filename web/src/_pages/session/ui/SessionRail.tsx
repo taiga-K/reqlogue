@@ -25,7 +25,7 @@ export function SessionRail({ pane, onSelect }: SessionRailProps) {
             key={item.id}
             type="button"
             className={styles["item"]}
-            aria-current={selected ? "page" : undefined}
+            aria-pressed={selected}
             onClick={() => {
               onSelect(item.id);
             }}

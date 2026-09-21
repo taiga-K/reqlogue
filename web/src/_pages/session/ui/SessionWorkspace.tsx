@@ -6,6 +6,7 @@ import {
   readMeeting,
   saveAdviceProgress,
   saveMindmapProgress,
+  subscribeMeetingTranscript,
   subscribeMeetings,
   type AdviceCard,
   type AdviceColumn,
@@ -68,7 +69,7 @@ export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
       },
       update: createMindmapUpdater(),
     });
-    const unsubscribe = subscribeMeetings(() => {
+    const unsubscribe = subscribeMeetingTranscript(() => {
       scheduler.notify();
     });
     scheduler.notify();
@@ -87,7 +88,7 @@ export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
       },
       update: createAdviceUpdater(),
     });
-    const unsubscribe = subscribeMeetings(() => {
+    const unsubscribe = subscribeMeetingTranscript(() => {
       scheduler.notify();
     });
     scheduler.notify();

@@ -43,11 +43,15 @@ def strip_fence(content: str) -> str:
     text = content.strip()
     if not text.startswith("```"):
         return text
-    lines = text.split("\n")
-    body = lines[1:]
-    if len(body) > 0 and body[-1].strip() == "```":
-        body = body[:-1]
-    return "\n".join(body).strip()
+    rest = text[3:]
+    if rest.lower().startswith("json"):
+        rest = rest[4:]
+    if rest.startswith((" ", "\t", "\n")):
+        rest = rest[1:]
+    rest = rest.strip()
+    if rest.endswith("```"):
+        rest = rest[:-3]
+    return rest.strip()
 
 
 def items_from_chat(raw: str) -> tuple[AdviceItem, ...]:

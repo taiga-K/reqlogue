@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { parseAdviceResponse } from "./ourApiAdvice";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { parseAdviceResponse, postAdviceAnalysis } from "./ourApiAdvice";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("parseAdviceResponse", () => {
   it("keeps at most two items and treats an empty list as nothing to add", () => {
@@ -43,5 +47,23 @@ describe("parseAdviceResponse", () => {
       },
     ]);
     expect(parseAdviceResponse({})).toBeNull();
+  });
+
+  it("sends the lifecycle signal with the advice request", async () => {
+    const signal = new AbortController().signal;
+    const fetchMock = vi.fn(
+      () => Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await postAdviceAnalysis({
+      meetingId: "meet-1",
+      transcriptDelta: "数量",
+      notifiedThemes: [],
+      signal,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/advice"),
+      expect.objectContaining({ signal }),
+    );
   });
 });

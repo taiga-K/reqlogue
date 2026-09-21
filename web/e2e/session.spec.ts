@@ -172,7 +172,8 @@ test("session rail opens the advice board", async ({ page }) => {
 
   const mindmap = page.getByRole("button", { name: "マインドマップ" });
   const advice = page.getByRole("button", { name: "アドバイス" });
-  await expect(mindmap).toHaveAttribute("aria-current", "page");
+  await expect(mindmap).toHaveAttribute("aria-pressed", "true");
+  await expect(advice).toHaveAttribute("aria-pressed", "false");
   await expect(mindmap.locator("svg")).toHaveAttribute("width", "32");
   await expect(mindmap.locator("svg")).toHaveAttribute("height", "32");
   await expect(mindmap.locator("svg")).toHaveAttribute("stroke-width", "1.9");
@@ -181,7 +182,8 @@ test("session rail opens the advice board", async ({ page }) => {
   await expect(mindmap).toHaveCSS("background-color", "rgb(253, 232, 230)");
 
   await advice.click();
-  await expect(advice).toHaveAttribute("aria-current", "page");
+  await expect(advice).toHaveAttribute("aria-pressed", "true");
+  await expect(mindmap).toHaveAttribute("aria-pressed", "false");
   await expect(advice.locator("svg")).toHaveAttribute("stroke", "#F26F67");
   await expect(mindmap.locator("svg")).toHaveAttribute("stroke", "#242322");
   await expect(advice).toHaveCSS("background-color", "rgb(253, 232, 230)");

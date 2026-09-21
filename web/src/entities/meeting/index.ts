@@ -28,6 +28,7 @@ export {
   meetingStorageKey,
   readMeeting,
   startNewMeeting,
+  subscribeMeetingTranscript,
   subscribeMeetings,
   writeMeeting,
 } from "./lib/meetingStorage";

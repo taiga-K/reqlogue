@@ -15,10 +15,13 @@ import {
   unsentSlice,
 } from "../model/mindmapUpdate";
 
+export const ADVICE_REQUEST_TIMEOUT_MS = 30_000;
+
 export type AdviceUpdatePort = (input: {
   readonly meetingId: string;
   readonly transcriptDelta: string;
   readonly notifiedThemes: readonly string[];
+  readonly signal: AbortSignal;
 }) => Promise<readonly AdviceDraft[]>;
 
 type AdviceClock = {
@@ -45,6 +48,7 @@ type SchedulerOptions = {
   readonly update: AdviceUpdatePort;
   readonly createId?: () => string;
   readonly clock?: AdviceClock;
+  readonly requestTimeoutMs?: number;
 };
 
 export function createAdviceScheduler(options: SchedulerOptions): {
@@ -60,6 +64,9 @@ export function createAdviceScheduler(options: SchedulerOptions): {
     inFlight: false,
     stopped: false,
     sending: Promise.resolve(),
+    armedUnsent: null as string | null,
+    requestTimeout: null as unknown,
+    onStop: null as (() => void) | null,
   };
 
   function clearTimers() {
@@ -70,6 +77,38 @@ export function createAdviceScheduler(options: SchedulerOptions): {
     if (live.boundaryTimer !== null) {
       clock.clearTimeout(live.boundaryTimer);
       live.boundaryTimer = null;
+    }
+    live.armedUnsent = null;
+  }
+
+  function beginRequest(): AbortSignal {
+    const controller = new AbortController();
+    const timeout = clock.setTimeout(() => {
+      controller.abort();
+    }, options.requestTimeoutMs ?? ADVICE_REQUEST_TIMEOUT_MS);
+    const onStop = () => {
+      clock.clearTimeout(timeout);
+      live.requestTimeout = null;
+      controller.abort();
+    };
+    live.requestTimeout = timeout;
+    live.onStop = onStop;
+    if (abort.signal.aborted) {
+      onStop();
+      return controller.signal;
+    }
+    abort.signal.addEventListener("abort", onStop);
+    return controller.signal;
+  }
+
+  function finishRequest(): void {
+    if (live.requestTimeout !== null) {
+      clock.clearTimeout(live.requestTimeout);
+      live.requestTimeout = null;
+    }
+    if (live.onStop !== null) {
+      abort.signal.removeEventListener("abort", live.onStop);
+      live.onStop = null;
     }
   }
 
@@ -125,6 +164,7 @@ function prefixStillAnchored(transcript: string, from: number, prefix: string): 
     clearTimers();
     const sentFrom = record.adviceSentTranscriptOffset;
     const transcriptLengthAtSend = record.transcript.length;
+    const signal = beginRequest();
     let sent = false;
     let dropped = false;
     try {
@@ -132,6 +172,7 @@ function prefixStillAnchored(transcript: string, from: number, prefix: string): 
         meetingId: options.meetingId,
         transcriptDelta: speech,
         notifiedThemes: notifiedThemes(record.adviceCards),
+        signal,
       });
       const latest = options.read();
       if (latest === null || !prefixStillAnchored(latest.transcript, sentFrom, prefix)) {
@@ -150,6 +191,7 @@ function prefixStillAnchored(transcript: string, from: number, prefix: string): 
       }
       return;
     } finally {
+      finishRequest();
       live.inFlight = false;
       if (sent) {
         settleLeftover(transcriptLengthAtSend);
@@ -160,11 +202,16 @@ function prefixStillAnchored(transcript: string, from: number, prefix: string): 
   }
 
   function armQuiet(unsent: string) {
+    if (live.quietTimer !== null && live.armedUnsent === unsent) {
+      return;
+    }
     if (live.quietTimer !== null) {
       clock.clearTimeout(live.quietTimer);
     }
+    live.armedUnsent = unsent;
     live.quietTimer = clock.setTimeout(() => {
       live.quietTimer = null;
+      live.armedUnsent = null;
       const prefix = takeSendablePrefix(unsent, "quiet");
       if (prefix !== null) {
         enqueueSend(prefix);
@@ -176,8 +223,10 @@ function prefixStillAnchored(transcript: string, from: number, prefix: string): 
     if (live.boundaryTimer !== null) {
       return;
     }
+    live.armedUnsent = unsent;
     live.boundaryTimer = clock.setTimeout(() => {
       live.boundaryTimer = null;
+      live.armedUnsent = null;
       const prefix = takeSendablePrefix(unsent, "force");
       if (prefix !== null) {
         enqueueSend(prefix);
@@ -200,6 +249,12 @@ function prefixStillAnchored(transcript: string, from: number, prefix: string): 
       return;
     }
     if (live.inFlight) {
+      return;
+    }
+    if (
+      unsent === live.armedUnsent &&
+      (live.quietTimer !== null || live.boundaryTimer !== null)
+    ) {
       return;
     }
     if (isFillerOnly(speechFromTranscript(unsent))) {

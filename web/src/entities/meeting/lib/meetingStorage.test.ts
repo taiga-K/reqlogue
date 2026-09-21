@@ -122,4 +122,26 @@ describe("meetingStorage", () => {
     clearMeeting(record.id);
     expect(readMeeting(record.id)).toBeNull();
   });
+
+  it("drops the parsed cache when a meeting is cleared", () => {
+    const record = startNewMeeting("会議", () => "meet-cache");
+    const first = readMeeting(record.id);
+    const key = `${MEETING_STORAGE_PREFIX}meet-cache`;
+    const raw = localStorage.getItem(key);
+    clearMeeting(record.id);
+    if (raw !== null) {
+      localStorage.setItem(key, raw);
+    }
+    expect(readMeeting(record.id)).not.toBe(first);
+
+    const again = startNewMeeting("会議", () => "meet-cache-all");
+    const cached = readMeeting(again.id);
+    const allKey = `${MEETING_STORAGE_PREFIX}meet-cache-all`;
+    const allRaw = localStorage.getItem(allKey);
+    clearAllMeetings();
+    if (allRaw !== null) {
+      localStorage.setItem(allKey, allRaw);
+    }
+    expect(readMeeting(again.id)).not.toBe(cached);
+  });
 });

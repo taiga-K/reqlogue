@@ -35,6 +35,7 @@ export async function postAdviceAnalysis(input: {
   readonly meetingId: string;
   readonly transcriptDelta: string;
   readonly notifiedThemes: readonly string[];
+  readonly signal: AbortSignal;
 }): Promise<readonly AdviceDraft[]> {
   const response = await fetch(`${apiBaseUrl()}/v1/advice`, {
     method: "POST",
@@ -44,6 +45,7 @@ export async function postAdviceAnalysis(input: {
       transcriptDelta: input.transcriptDelta,
       notifiedThemes: input.notifiedThemes,
     }),
+    signal: input.signal,
   });
   if (!response.ok) {
     throw new Error("advice unavailable");

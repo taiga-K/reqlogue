@@ -26,7 +26,7 @@
   cursor: pointer;
 }
 
-.item[aria-current="page"] {
+.item[aria-pressed="true"] {
   background: #fde8e6;
 }
 
@@ -34,7 +34,7 @@
   background: #f6f1ec;
 }
 
-.item[aria-current="page"]:hover {
+.item[aria-pressed="true"]:hover {
   background: #fde8e6;
 }
 
