@@ -1,21 +1,29 @@
 .banner {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1.25rem;
+  gap: 1.25rem;
+  padding: 1.25rem 1.75rem;
   background: var(--background);
 }
 
 .mark {
   flex-shrink: 0;
   width: auto;
-  height: 2.5rem;
+  height: 4.5rem;
+}
+
+.rule {
+  flex-shrink: 0;
+  width: 4px;
+  height: 2rem;
+  border-radius: 2px;
+  background: #c8c4c0;
 }
 
 .name {
-  margin: 0;
-  font-size: 1.125rem;
+  margin: 0 0 0 1rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.2;
   color: var(--foreground);
 }

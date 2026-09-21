@@ -17,7 +17,12 @@ export function SessionHeader({ name }: SessionHeaderProps) {
         priority
         className={styles["mark"]}
       />
-      {heading === null ? null : <h1 className={styles["name"]}>{heading}</h1>}
+      {heading === null ? null : (
+        <>
+          <span className={styles["rule"]} aria-hidden="true" />
+          <h1 className={styles["name"]}>{heading}</h1>
+        </>
+      )}
     </header>
   );
 }
