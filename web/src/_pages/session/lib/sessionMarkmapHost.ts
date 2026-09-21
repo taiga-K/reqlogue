@@ -85,7 +85,11 @@ export function createSessionMarkmapHost(svg: SVGSVGElement): SessionMarkmapHost
     if (disposed || userMoved || rememberedRoot === null) {
       return;
     }
-    applyTransform(titleFirstTransform(readViewport(), rememberedRoot));
+    const viewport = readMeasuredViewport();
+    if (viewport === null) {
+      return;
+    }
+    applyTransform(titleFirstTransform(viewport, rememberedRoot));
   });
   frameObserver.observe(svg);
 
@@ -110,6 +114,14 @@ export function createSessionMarkmapHost(svg: SVGSVGElement): SessionMarkmapHost
   function readViewport(): Viewport {
     const box = svg.getBoundingClientRect();
     return { width: box.width, height: box.height };
+  }
+
+  function readMeasuredViewport(): Viewport | null {
+    const viewport = readViewport();
+    if (viewport.width <= 0 || viewport.height <= 0) {
+      return null;
+    }
+    return viewport;
   }
 
   function readRootRect(): RootNodeRect | null {
@@ -143,7 +155,10 @@ export function createSessionMarkmapHost(svg: SVGSVGElement): SessionMarkmapHost
       return;
     }
     if (rememberedRoot === null) {
-      applyTransform(titleFirstTransform(readViewport(), nextRoot));
+      const viewport = readMeasuredViewport();
+      if (viewport !== null) {
+        applyTransform(titleFirstTransform(viewport, nextRoot));
+      }
     } else if (!zoomGesture) {
       applyTransform(counterPan(current, contentShift(rememberedRoot, nextRoot)));
     }
@@ -161,14 +176,13 @@ export function createSessionMarkmapHost(svg: SVGSVGElement): SessionMarkmapHost
       if (disposed) {
         return;
       }
-      userMoved = true;
       const tree = readTreeRect();
-      if (tree === null) {
+      const viewport = readMeasuredViewport();
+      if (tree === null || viewport === null) {
         return;
       }
-      applyTransform(
-        applyCameraCommand(cameraCommand, current, readViewport(), tree),
-      );
+      userMoved = true;
+      applyTransform(applyCameraCommand(cameraCommand, current, viewport, tree));
     },
     readScale() {
       return current.k;

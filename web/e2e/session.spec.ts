@@ -70,14 +70,14 @@ test("start meeting writes local transcript and end clears it", async ({
     .poll(async () => readMeetingRecords(page))
     .toContain("stub transcript");
 
-  await expect(page.locator("main svg")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("img")).toBeVisible();
   await expect(page.getByText("マインドマップ")).toHaveCount(0);
   await expect(page.getByText("stub transcript")).toHaveCount(0);
 
   await page.getByRole("button", { name: "会議を終了" }).click();
   await expect(page.getByRole("button", { name: "会議を開始" })).toBeVisible();
   await expect.poll(async () => readMeetingKeys(page)).toEqual([]);
-  await expect(page.locator("main svg")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("img")).toHaveCount(0);
 });
 
 test("starting a new meeting clears the previous record", async ({ page }) => {
