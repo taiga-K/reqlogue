@@ -7,9 +7,9 @@ import { SessionHeader } from "./SessionHeader";
 import styles from "./SessionPage.module.css";
 
 type SessionPageProps = {
-  readonly searchParams: Promise<
-    Readonly<Record<string, string | string[] | undefined>>
-  >;
+  readonly searchParams: Promise<{
+    readonly [key: string]: string | string[] | undefined;
+  }>;
 };
 
 export async function generateMetadata({
@@ -20,10 +20,10 @@ export async function generateMetadata({
   );
 
   switch (meeting.status) {
+    case "blank":
+      return {};
     case "named":
       return { title: `${meeting.name} · reqlogue` };
-    case "blank":
-      return { title: "reqlogue" };
     default: {
       const _exhaustive: never = meeting;
       return _exhaustive;

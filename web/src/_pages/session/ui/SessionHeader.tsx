@@ -8,6 +8,20 @@ type SessionHeaderProps = {
 };
 
 export function SessionHeader({ meeting }: SessionHeaderProps) {
+  let heading: string | null;
+  switch (meeting.status) {
+    case "blank":
+      heading = null;
+      break;
+    case "named":
+      heading = meeting.name;
+      break;
+    default: {
+      const _exhaustive: never = meeting;
+      return _exhaustive;
+    }
+  }
+
   return (
     <header className={styles["banner"]}>
       <Image
@@ -16,20 +30,7 @@ export function SessionHeader({ meeting }: SessionHeaderProps) {
         priority
         className={styles["mark"]}
       />
-      <MeetingTitle meeting={meeting} />
+      {heading === null ? null : <h1 className={styles["name"]}>{heading}</h1>}
     </header>
   );
-}
-
-function MeetingTitle({ meeting }: SessionHeaderProps) {
-  switch (meeting.status) {
-    case "blank":
-      return null;
-    case "named":
-      return <h1 className={styles["name"]}>{meeting.name}</h1>;
-    default: {
-      const _exhaustive: never = meeting;
-      return _exhaustive;
-    }
-  }
 }
