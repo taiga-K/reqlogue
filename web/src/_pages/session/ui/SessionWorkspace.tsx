@@ -19,10 +19,15 @@ type SessionWorkspaceProps = {
 };
 
 export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
-  const record = useSyncExternalStore(
+  const name = useSyncExternalStore(
     subscribeMeetings,
-    () => readMeeting(meetingId),
-    () => null,
+    () => readMeeting(meetingId)?.name ?? "",
+    () => "",
+  );
+  const mindmapMarkdown = useSyncExternalStore(
+    subscribeMeetings,
+    () => readMeeting(meetingId)?.mindmapMarkdown ?? "",
+    () => "",
   );
 
   useEffect(() => {
@@ -46,9 +51,9 @@ export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
 
   return (
     <>
-      <SessionHeader name={record?.name ?? ""} />
+      <SessionHeader name={name} />
       <main className={styles["main"]}>
-        <SessionMindmap markdown={record?.mindmapMarkdown ?? ""} />
+        <SessionMindmap markdown={mindmapMarkdown} />
       </main>
       <StartMeetingControl meetingId={meetingId} />
     </>
