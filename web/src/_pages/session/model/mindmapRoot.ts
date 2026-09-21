@@ -1,4 +1,5 @@
 const ROOT_HEADING = /^#(?:[ \t]|$)/;
+const ATX_HEADING = /^(#{1,6})(?:[ \t]|$)/;
 const FENCE = /^(```+|~~~+)(.*)$/;
 
 export function pinMindmapRoot(markdown: string, meetingName: string): string {
@@ -9,6 +10,7 @@ export function pinMindmapRoot(markdown: string, meetingName: string): string {
   const lines = markdown.split("\n");
   let fence: string | null = null;
   let rooted = false;
+  let sink = false;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
     const marker = FENCE.exec(line.trim());
@@ -17,15 +19,17 @@ export function pinMindmapRoot(markdown: string, meetingName: string): string {
         fence = marker[1] ?? null;
         continue;
       }
-      if (!ROOT_HEADING.test(line)) {
-        continue;
+      if (ROOT_HEADING.test(line)) {
+        if (!rooted) {
+          lines[index] = heading;
+          rooted = true;
+          continue;
+        }
+        sink = true;
       }
-      if (!rooted) {
-        lines[index] = heading;
-        rooted = true;
-        continue;
+      if (sink && ATX_HEADING.test(line)) {
+        lines[index] = sinkHeading(line);
       }
-      lines[index] = demoteH1(line);
       continue;
     }
     const close = marker?.[1];
@@ -44,9 +48,10 @@ export function pinMindmapRoot(markdown: string, meetingName: string): string {
   return lines.join("\n");
 }
 
-function demoteH1(line: string): string {
-  if (line === "#") {
-    return "##";
+function sinkHeading(line: string): string {
+  const marks = /^(#{1,6})/.exec(line)?.[1] ?? "";
+  if (marks.length >= 6) {
+    return line;
   }
   return `#${line}`;
 }
