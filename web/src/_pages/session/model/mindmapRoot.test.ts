@@ -37,6 +37,13 @@ describe("pinMindmapRoot", () => {
     );
   });
 
+  it("closes a fence when the ending run is longer than the opening run", () => {
+    const markdown = "```\n# command\n````\n\n# モデルの題\n\n- ログイン";
+    expect(pinMindmapRoot(markdown, "test")).toBe(
+      "```\n# command\n````\n\n# test\n\n- ログイン",
+    );
+  });
+
   it("keeps a fenced command when the root heading comes first", () => {
     const markdown = "# モデルの題\n\n```\n# command\n```\n\n- ログイン";
     expect(pinMindmapRoot(markdown, "test")).toBe(

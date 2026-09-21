@@ -31,7 +31,13 @@ function firstRootHeading(lines: readonly string[]): number {
       }
       continue;
     }
-    if (marker !== null && marker[1] === fence && (marker[2] ?? "") === "") {
+    const close = marker?.[1];
+    if (
+      marker !== null &&
+      close !== undefined &&
+      close.startsWith(fence) &&
+      (marker[2] ?? "") === ""
+    ) {
       fence = null;
     }
   }
