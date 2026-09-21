@@ -53,17 +53,11 @@
 
 .art {
   position: relative;
-  width: 709px;
-  height: 649px;
+  width: 700px;
+  height: 730px;
   overflow: hidden;
 }
 
-.circleMintTop,
-.circleMintBottom,
-.circleBlush,
-.circleYellowLeft,
-.circleYellowRight,
-.flowerMint,
 .bubbleDots,
 .bubbleSpeak,
 .bubbleLines,
@@ -74,55 +68,16 @@
   height: auto;
 }
 
-.circleMintTop,
-.circleMintBottom,
-.circleBlush,
-.circleYellowLeft,
-.circleYellowRight {
-  z-index: 0;
-}
-
-.circleMintTop {
-  top: -25px;
-  left: 600px;
-  width: 140px;
-}
-
-.circleMintBottom {
-  top: 486px;
-  left: -48px;
-  width: 126px;
-}
-
-.circleBlush {
-  top: 340px;
-  left: 500px;
-  width: 220px;
-}
-
-.circleYellowLeft {
-  top: 490px;
-  left: 60px;
-  width: 59px;
-}
-
-.circleYellowRight {
-  top: 189px;
-  left: 635px;
-  width: 33px;
-}
-
 .spark,
 .plus,
-.flowerMint,
 .squiggle {
   z-index: 1;
 }
 
 .spark {
   position: absolute;
-  top: 58px;
-  left: 48px;
+  top: 22px;
+  left: 18px;
   width: 18px;
   height: 18px;
 }
@@ -152,8 +107,8 @@
 
 .plus {
   position: absolute;
-  top: 381px;
-  left: 104px;
+  top: 348px;
+  left: 22px;
   width: 18px;
   height: 18px;
 }
@@ -181,7 +136,7 @@
 
 .squiggle {
   position: absolute;
-  top: 292px;
+  top: 248px;
   left: 548px;
   width: 28px;
   height: 18px;
@@ -192,56 +147,52 @@
   transform: rotate(20deg);
 }
 
-.flowerMint {
-  top: 268px;
-  left: 48px;
-  width: 72px;
-}
-
 .bubbleDots,
 .bubbleSpeak,
 .bubbleLines,
 .arrows,
-.document,
-.character {
+.document {
   z-index: 2;
 }
 
+.character {
+  z-index: 3;
+}
+
 .bubbleSpeak {
-  top: 48px;
-  left: -3px;
-  width: 309px;
+  top: 62px;
+  left: -4px;
+  width: 233px;
 }
 
 .bubbleDots {
-  top: -16px;
-  left: 222px;
-  width: 319px;
+  top: 3px;
+  left: 139px;
+  width: 249px;
 }
 
 .bubbleLines {
-  top: 36px;
-  left: 450px;
-  width: 304px;
+  top: 56px;
+  left: 302px;
+  width: 251px;
 }
 
 .arrows {
-  top: 122px;
-  left: 168px;
-  width: 360px;
+  top: 111px;
+  left: 116px;
+  width: 307px;
 }
 
 .document {
-  top: 218px;
-  left: 128px;
-  width: 470px;
+  top: 140px;
+  left: -54px;
+  width: 705px;
 }
 
 .character {
-  top: 286px;
-  left: 388px;
-  width: 300px;
-  transform: rotate(12deg);
+  top: 328px;
+  left: 378px;
+  width: 311px;
 }
 
 @media (max-width: 860px) {
