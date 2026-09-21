@@ -1,17 +1,12 @@
 from fastapi.testclient import TestClient
 
+from reqlogue_api.infrastructure.stub_mindmap import STUB_MINDMAP
 from reqlogue_api.main.config import Settings
 from reqlogue_api.presentation.http.app import create_app
 
 
-def test_health_and_stub_transcription() -> None:
-    app = create_app(
-        Settings(
-            openai_api_key="",
-            transcriber="stub",
-            cors_origins=("http://127.0.0.1:3000",),
-        )
-    )
+def test_health_and_stub_transcription(settings: Settings) -> None:
+    app = create_app(settings)
     client = TestClient(app)
     health = client.get("/health")
     assert health.status_code == 200
@@ -25,3 +20,18 @@ def test_health_and_stub_transcription() -> None:
     assert response.status_code == 200
     assert response.json() == {"text": "stub transcript"}
     assert "speaker" not in response.json()
+
+
+def test_stub_mindmap_returns_complete_markdown(settings: Settings) -> None:
+    app = create_app(settings)
+    client = TestClient(app)
+    response = client.post(
+        "/v1/mindmap",
+        json={
+            "meetingId": "meet-1",
+            "previousMarkdown": "",
+            "transcriptDelta": "ログインはメールでやりたい",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"markdown": STUB_MINDMAP}

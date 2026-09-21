@@ -38,6 +38,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Unavailable"
+  /v1/mindmap:
+    post:
+      operationId: updateMindmap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MindmapUpdate"
+      responses:
+        "200":
+          description: Complete markmap Markdown for the meeting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mindmap"
+        "503":
+          description: Mindmap generator is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Unavailable"
 components:
   schemas:
     Health:
@@ -54,6 +76,25 @@ components:
       required: [text]
       properties:
         text:
+          type: string
+    MindmapUpdate:
+      type: object
+      additionalProperties: false
+      required: [meetingId, previousMarkdown, transcriptDelta]
+      properties:
+        meetingId:
+          type: string
+          minLength: 1
+        previousMarkdown:
+          type: string
+        transcriptDelta:
+          type: string
+    Mindmap:
+      type: object
+      additionalProperties: false
+      required: [markdown]
+      properties:
+        markdown:
           type: string
     Unavailable:
       type: object
