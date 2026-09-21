@@ -1,5 +1,7 @@
+import ssl
 from collections.abc import Awaitable, Callable
 
+import certifi
 import websockets
 
 from reqlogue_api.application.ports import MindmapGenerator, Transcriber
@@ -15,7 +17,11 @@ async def _connect(url: str, headers: list[str]) -> object:
     for header in headers:
         name, value = header.split(": ", 1)
         parsed[name] = value
-    return await websockets.connect(url, additional_headers=parsed)
+    return await websockets.connect(
+        url,
+        additional_headers=parsed,
+        ssl=ssl.create_default_context(cafile=certifi.where()),
+    )
 
 
 def build_transcriber(
