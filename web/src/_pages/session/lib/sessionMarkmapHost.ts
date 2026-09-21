@@ -207,6 +207,10 @@ export function createSessionMarkmapHost(svg: SVGSVGElement): SessionMarkmapHost
       }
       userMoved = true;
       applyTransform(applyCameraCommand(cameraCommand, current, viewport, tree));
+      const root = readRootRect();
+      if (root !== null) {
+        rememberedRoot = root;
+      }
     },
     readScale() {
       return current.k;
