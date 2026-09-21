@@ -78,8 +78,12 @@ export function createSessionMarkmapHost(svg: SVGSVGElement): SessionMarkmapHost
     zoomGesture = true;
     userMoved = true;
   });
-  zoom.on("end.reqlogue", () => {
+  zoom.on("end.reqlogue", (event: ZoomEvent) => {
+    if (event.sourceEvent === null) {
+      return;
+    }
     zoomGesture = false;
+    compensateSkippedRoot();
   });
   const frameObserver = new ResizeObserver(() => {
     if (disposed || userMoved || rememberedRoot === null) {
@@ -159,9 +163,29 @@ export function createSessionMarkmapHost(svg: SVGSVGElement): SessionMarkmapHost
       if (viewport !== null) {
         applyTransform(titleFirstTransform(viewport, nextRoot));
       }
-    } else if (!zoomGesture) {
-      applyTransform(counterPan(current, contentShift(rememberedRoot, nextRoot)));
+      rememberedRoot = nextRoot;
+      return;
     }
+    if (zoomGesture) {
+      return;
+    }
+    applyTransform(counterPan(current, contentShift(rememberedRoot, nextRoot)));
+    rememberedRoot = nextRoot;
+  }
+
+  function compensateSkippedRoot(): void {
+    if (disposed || rememberedRoot === null) {
+      return;
+    }
+    const nextRoot = readRootRect();
+    if (nextRoot === null) {
+      return;
+    }
+    const shift = contentShift(rememberedRoot, nextRoot);
+    if (shift.dx === 0 && shift.dy === 0) {
+      return;
+    }
+    applyTransform(counterPan(current, shift));
     rememberedRoot = nextRoot;
   }
 
