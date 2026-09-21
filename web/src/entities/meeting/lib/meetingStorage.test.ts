@@ -6,6 +6,7 @@ import {
   clearMeeting,
   MEETING_STORAGE_PREFIX,
   readMeeting,
+  saveMindmapProgress,
   startNewMeeting,
 } from "./meetingStorage";
 
@@ -20,6 +21,8 @@ describe("meetingStorage", () => {
       id: "meet-a",
       name: "新サービス",
       transcript: "",
+      mindmapMarkdown: "",
+      sentTranscriptOffset: 0,
     });
     expect(readMeeting(record.id)?.name).toBe("新サービス");
     expect(Object.keys(localStorage)).toEqual([
@@ -52,6 +55,20 @@ describe("meetingStorage", () => {
     expect(readMeeting(record.id)?.transcript).toBe(
       "2026-09-21T16:01:00.000Z こんにちは",
     );
+    clearMeeting(record.id);
+    expect(readMeeting(record.id)).toBeNull();
+  });
+
+  it("stores mindmap markdown and sent offset, then clears both with the record", () => {
+    const record = startNewMeeting("会議", () => "meet-map");
+    saveMindmapProgress(record.id, "# 会議\n\n- 要件", 12);
+    expect(readMeeting(record.id)).toEqual({
+      id: "meet-map",
+      name: "会議",
+      transcript: "",
+      mindmapMarkdown: "# 会議\n\n- 要件",
+      sentTranscriptOffset: 12,
+    });
     clearMeeting(record.id);
     expect(readMeeting(record.id)).toBeNull();
   });

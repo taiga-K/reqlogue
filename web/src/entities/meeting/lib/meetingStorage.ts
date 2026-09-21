@@ -70,6 +70,28 @@ export function appendMeetingTranscript(
     id: existing.id,
     name: existing.name,
     transcript: appendTranscriptLine(existing.transcript, at, text),
+    mindmapMarkdown: existing.mindmapMarkdown,
+    sentTranscriptOffset: existing.sentTranscriptOffset,
+  };
+  writeMeeting(next);
+  return next;
+}
+
+export function saveMindmapProgress(
+  id: MeetingId,
+  markdown: string,
+  sentTranscriptOffset: number,
+): MeetingRecord | null {
+  const existing = readMeeting(id);
+  if (existing === null) {
+    return null;
+  }
+  const next: MeetingRecord = {
+    id: existing.id,
+    name: existing.name,
+    transcript: existing.transcript,
+    mindmapMarkdown: markdown,
+    sentTranscriptOffset,
   };
   writeMeeting(next);
   return next;

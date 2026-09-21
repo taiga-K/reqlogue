@@ -1,12 +1,16 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   readMeeting,
+  saveMindmapProgress,
   subscribeMeetings,
   type MeetingId,
 } from "@/entities/meeting";
+import { createMindmapUpdater } from "../lib/ourApiMindmap";
+import { createMindmapScheduler } from "../lib/mindmapScheduler";
 import { SessionHeader } from "./SessionHeader";
+import { SessionMindmap } from "./SessionMindmap";
 import { StartMeetingControl } from "./StartMeetingControl";
 import styles from "./SessionPage.module.css";
 
@@ -15,16 +19,37 @@ type SessionWorkspaceProps = {
 };
 
 export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
-  const name = useSyncExternalStore(
+  const record = useSyncExternalStore(
     subscribeMeetings,
-    () => readMeeting(meetingId)?.name ?? "",
-    () => "",
+    () => readMeeting(meetingId),
+    () => null,
   );
+
+  useEffect(() => {
+    const scheduler = createMindmapScheduler({
+      meetingId,
+      read: () => readMeeting(meetingId),
+      save: (markdown, sentTranscriptOffset) => {
+        saveMindmapProgress(meetingId, markdown, sentTranscriptOffset);
+      },
+      update: createMindmapUpdater(),
+    });
+    const unsubscribe = subscribeMeetings(() => {
+      scheduler.notify();
+    });
+    scheduler.notify();
+    return () => {
+      unsubscribe();
+      scheduler.stop();
+    };
+  }, [meetingId]);
 
   return (
     <>
-      <SessionHeader name={name} />
-      <main className={styles["main"]} />
+      <SessionHeader name={record?.name ?? ""} />
+      <main className={styles["main"]}>
+        <SessionMindmap markdown={record?.mindmapMarkdown ?? ""} />
+      </main>
       <StartMeetingControl meetingId={meetingId} />
     </>
   );
