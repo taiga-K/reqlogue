@@ -1,6 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
-import { chromium } from "playwright";
+
+const repoRoot = requiredEnv("REQLOGUE_VERIFY_REPO_ROOT");
+const requireFromWeb = createRequire(path.join(repoRoot, "web", "package.json"));
+const { chromium } = requireFromWeb("playwright");
 
 const UUID_SESSION =
   /\/session\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -155,14 +159,10 @@ async function driveHomeStart(dir) {
       fail("meeting record did not persist the typed name");
     }
     await page.reload();
-    if (
-      !(await page
-        .getByRole("banner")
-        .getByRole("heading", { name: "新サービスの打ち合わせ" })
-        .isVisible())
-    ) {
-      fail("name did not survive reload");
-    }
+    await page
+      .getByRole("banner")
+      .getByRole("heading", { name: "新サービスの打ち合わせ" })
+      .waitFor();
     const afterNamed = await capture(page, dir, "02-session-named");
 
     await page.goto(`${webUrl}/`);

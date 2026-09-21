@@ -54,7 +54,7 @@ Run this first whenever anything looks off, and the drive helper runs it automat
 It is read-only. Healthy means:
 
 - `meta.env` exists for the current run
-- the web PID is alive and owns TCP `WEB_PORT` (the listener may be a child of the launched `setsid` PID)
+- the web PID is alive and owns TCP `WEB_PORT` (checked via `/proc/net/tcp` inodes, because `lsof` misses Next's listen socket in this environment; the listener may be a child of the launched session PID)
 - `GET $WEB_URL/` is the reqlogue home page (title + headline)
 - `git rev-parse HEAD` matches the SHA recorded at launch
 - `NEXT_PUBLIC_API_MOCKING` recorded for this run is `enabled`

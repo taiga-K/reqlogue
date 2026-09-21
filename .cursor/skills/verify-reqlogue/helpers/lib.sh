@@ -56,7 +56,47 @@ pid_alive() {
 
 listening_pids() {
   local port="$1"
-  lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | sort -u
+  python3 - "$port" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+port = int(sys.argv[1])
+inodes: set[str] = set()
+
+
+def collect(path: Path) -> None:
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines()[1:]:
+        parts = line.split()
+        local = parts[1]
+        state = parts[3]
+        inode = parts[9]
+        _ip, raw_port = local.rsplit(":", 1)
+        if int(raw_port, 16) == port and state == "0A":
+            inodes.add(inode)
+
+
+collect(Path("/proc/net/tcp"))
+collect(Path("/proc/net/tcp6"))
+pids: set[str] = set()
+for proc in Path("/proc").iterdir():
+    if not proc.name.isdigit():
+        continue
+    fd_dir = proc / "fd"
+    try:
+        for link in fd_dir.iterdir():
+            try:
+                target = os.readlink(link)
+            except OSError:
+                continue
+            if target.startswith("socket:[") and target[8:-1] in inodes:
+                pids.add(proc.name)
+    except OSError:
+        continue
+print("\n".join(sorted(pids, key=int)))
+PY
 }
 
 ppid_of() {
@@ -156,6 +196,6 @@ kill_tree() {
 html_has_reqlogue_home() {
   local url="$1"
   local body
-  body="$(curl -fsS --max-time 5 "$url/" || true)"
+  body="$(curl -fsS --max-time 5 "$url/" 2>/dev/null || true)"
   [[ "$body" == *"<title>reqlogue</title>"* ]] && [[ "$body" == *"話すことに、集中しよう。"* ]]
 }

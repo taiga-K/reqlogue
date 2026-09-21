@@ -39,3 +39,4 @@ Preconditions:
 - The session URL is the meeting id. A `meetingName` query string means an old client and fails this feature.
 - Starting a new meeting from home clears earlier `reqlogue.meeting.*` keys. A previous session URL is not a stable fixture.
 - Directly opening `/session/<uuid>` skips this feature even if a banner appears.
+- Reloading a named session hydrates the heading from the stored record. Wait for the heading; the first SSR paint has no name.
