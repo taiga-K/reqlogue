@@ -1,7 +1,6 @@
 export const SCALE_MIN = 0.25;
 export const SCALE_MAX = 4;
 export const SCALE_STEP = 1.25;
-export const TITLE_PADDING = 48;
 export const FIT_RATIO = 0.95;
 
 export type RootNodeRect = {
@@ -52,8 +51,9 @@ export function titleFirstTransform(
     SCALE_MIN,
     1,
   );
+  const rootCenterX = root.x + root.width / 2;
   return {
-    x: TITLE_PADDING - root.x * k,
+    x: viewport.width / 2 - rootCenterX * k,
     y: viewport.height / 2 - (root.y + root.height / 2) * k,
     k,
   };

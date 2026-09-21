@@ -1,4 +1,5 @@
 import type { MeetingId, MeetingRecord } from "@/entities/meeting";
+import { pinMindmapRoot } from "../model/mindmapRoot";
 import {
   BOUNDARY_WAIT_MS,
   QUIET_MS,
@@ -121,7 +122,10 @@ export function createMindmapScheduler(options: SchedulerOptions): {
       if (latest === null) {
         return;
       }
-      options.save(markdown, offsetAfterPrefix(latest.transcript, sentFrom, prefix));
+      options.save(
+        pinMindmapRoot(markdown, latest.name),
+        offsetAfterPrefix(latest.transcript, sentFrom, prefix),
+      );
       sent = true;
     } catch {
       if (!live.stopped) {

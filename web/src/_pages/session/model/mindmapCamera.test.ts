@@ -15,7 +15,7 @@ import {
 const viewport = { width: 800, height: 600 } as const satisfies Viewport;
 
 describe("titleFirstTransform", () => {
-  it("pins the root at x=48, vertically centered, at scale 1 when the title fits", () => {
+  it("places the root center on the canvas center at scale 1 when the title fits", () => {
     const root = {
       kind: "root",
       x: 10,
@@ -25,7 +25,7 @@ describe("titleFirstTransform", () => {
     } as const satisfies RootNodeRect;
 
     expect(titleFirstTransform(viewport, root)).toEqual({
-      x: 38,
+      x: 340,
       y: 260,
       k: 1,
     });
@@ -41,7 +41,7 @@ describe("titleFirstTransform", () => {
     } as const satisfies RootNodeRect;
 
     expect(titleFirstTransform(viewport, root)).toEqual({
-      x: 48,
+      x: 390,
       y: 295,
       k: 1,
     });
@@ -64,7 +64,7 @@ describe("titleFirstTransform", () => {
     } as const satisfies TreeRect;
 
     expect(titleFirstTransform(viewport, root)).toEqual({
-      x: 48,
+      x: 360,
       y: 290,
       k: 1,
     });
@@ -82,7 +82,7 @@ describe("titleFirstTransform", () => {
     } as const satisfies RootNodeRect;
 
     expect(titleFirstTransform(viewport, root)).toEqual({
-      x: -2,
+      x: -50,
       y: 265,
       k: 0.5,
     });
@@ -98,13 +98,13 @@ describe("titleFirstTransform", () => {
     } as const satisfies RootNodeRect;
 
     expect(titleFirstTransform(viewport, root)).toEqual({
-      x: 48,
+      x: 380,
       y: 0,
       k: 0.5,
     });
   });
 
-  it("clamps a huge title to 0.25", () => {
+  it("clamps a huge title to 0.25 and still centers it", () => {
     const root = {
       kind: "root",
       x: 0,
@@ -113,11 +113,13 @@ describe("titleFirstTransform", () => {
       height: 40,
     } as const satisfies RootNodeRect;
 
-    expect(titleFirstTransform(viewport, root)).toEqual({
-      x: 48,
+    const placed = titleFirstTransform(viewport, root);
+    expect(placed).toEqual({
+      x: -600,
       y: 295,
       k: 0.25,
     });
+    expect(placed.x + (root.x + root.width / 2) * placed.k).toBe(viewport.width / 2);
   });
 });
 

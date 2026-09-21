@@ -158,11 +158,15 @@ export function createSessionMarkmapHost(svg: SVGSVGElement): SessionMarkmapHost
     if (nextRoot === null) {
       return;
     }
-    if (rememberedRoot === null) {
+    if (!userMoved) {
       const viewport = readMeasuredViewport();
       if (viewport !== null) {
         applyTransform(titleFirstTransform(viewport, nextRoot));
       }
+      rememberedRoot = nextRoot;
+      return;
+    }
+    if (rememberedRoot === null) {
       rememberedRoot = nextRoot;
       return;
     }

@@ -9,6 +9,7 @@ import {
 } from "@/entities/meeting";
 import { createMindmapUpdater } from "../lib/ourApiMindmap";
 import { createMindmapScheduler } from "../lib/mindmapScheduler";
+import { pinMindmapRoot } from "../model/mindmapRoot";
 import { SessionHeader } from "./SessionHeader";
 import { SessionMindmap } from "./SessionMindmap";
 import { StartMeetingControl } from "./StartMeetingControl";
@@ -29,6 +30,18 @@ export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
     () => readMeeting(meetingId)?.mindmapMarkdown ?? "",
     () => "",
   );
+  const shownMarkdown = pinMindmapRoot(mindmapMarkdown, name);
+
+  useEffect(() => {
+    if (shownMarkdown === mindmapMarkdown) {
+      return;
+    }
+    const record = readMeeting(meetingId);
+    if (record === null) {
+      return;
+    }
+    saveMindmapProgress(meetingId, shownMarkdown, record.sentTranscriptOffset);
+  }, [meetingId, mindmapMarkdown, shownMarkdown]);
 
   useEffect(() => {
     const scheduler = createMindmapScheduler({
@@ -53,7 +66,7 @@ export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
     <>
       <SessionHeader name={name} />
       <main className={styles["main"]}>
-        <SessionMindmap markdown={mindmapMarkdown} />
+        <SessionMindmap markdown={shownMarkdown} />
       </main>
       <StartMeetingControl meetingId={meetingId} />
     </>
