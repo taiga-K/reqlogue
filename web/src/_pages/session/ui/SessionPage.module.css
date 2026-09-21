@@ -1,0 +1,11 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--background);
+}
+
+.main {
+  flex: 1 1 auto;
+  min-height: 0;
+}
