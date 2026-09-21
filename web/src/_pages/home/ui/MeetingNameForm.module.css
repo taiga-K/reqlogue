@@ -1,0 +1,6 @@
+/* --s is defined on the page root. */
+
+.form {
+  margin-top: calc(3.9 * var(--s));
+  width: 100%;
+}

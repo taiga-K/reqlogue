@@ -1,0 +1,68 @@
+/* WebP roles: speak, dots, lines, note, character.
+   1u = scene width / 49.5. In the 1024px mockup the art is 39.6vw wide, so 1u = 0.8vw.
+   Visible ink targets from the mockup: note 28.1u, character 18.25u, each bubble 15.25u. */
+
+.scene {
+  --u: calc(100cqi / 49.5);
+  container-type: inline-size;
+  display: grid;
+  grid-template-areas:
+    "cluster cluster"
+    "note character";
+  grid-template-columns: 81.31% 18.69%;
+  justify-self: stretch;
+  align-items: end;
+  min-width: 0;
+  width: 100%;
+}
+
+.cluster {
+  display: grid;
+  grid-area: cluster;
+  grid-template-areas: "speak dots lines";
+  grid-template-columns: repeat(3, calc(16.5 * var(--u)));
+  justify-items: center;
+  align-items: end;
+  z-index: 1;
+  margin-bottom: calc(-3.2 * var(--u));
+}
+
+.bubbleDots,
+.bubbleSpeak,
+.bubbleLines,
+.note,
+.character {
+  display: block;
+  height: auto;
+  max-width: none;
+}
+
+.bubbleSpeak {
+  grid-area: speak;
+  width: calc(23.6 * var(--u));
+}
+
+.bubbleDots {
+  grid-area: dots;
+  width: calc(23.6 * var(--u));
+  margin-bottom: calc(6 * var(--u));
+}
+
+.bubbleLines {
+  grid-area: lines;
+  width: calc(23.6 * var(--u));
+}
+
+.note {
+  grid-area: note;
+  width: calc(33.4 * var(--u));
+  justify-self: end;
+}
+
+.character {
+  grid-area: character;
+  width: calc(29.9 * var(--u));
+  justify-self: start;
+  z-index: 2;
+  margin-left: calc(-13.7 * var(--u));
+}

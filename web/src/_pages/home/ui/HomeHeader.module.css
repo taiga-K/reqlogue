@@ -1,0 +1,40 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding-block: 1.25rem;
+}
+
+.mark {
+  flex-shrink: 0;
+  width: auto;
+  height: 5.5rem;
+}
+
+.rule {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  gap: 1.25rem;
+}
+
+.ruleLine {
+  flex: 1 1 auto;
+  height: 4px;
+  background: #c8c4c0;
+}
+
+.ruleDots {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ruleDots span {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 50%;
+  background: #9e9892;
+}
