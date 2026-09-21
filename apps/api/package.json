@@ -1,0 +1,11 @@
+{
+  "name": "@reqlogue/api",
+  "private": true,
+  "scripts": {
+    "dev": "uv run uvicorn reqlogue_api.main:app --reload --app-dir src --host 127.0.0.1 --port 8000",
+    "lint": "uv run ruff check src tests",
+    "typecheck": "uv run mypy src",
+    "test": "uv run pytest",
+    "verify": "uv run ruff check src tests && uv run mypy src && uv run pytest"
+  }
+}

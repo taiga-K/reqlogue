@@ -1,0 +1,28 @@
+.list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 4px;
+}
+
+.speaker {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.text {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}

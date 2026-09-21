@@ -1,0 +1,19 @@
+{
+  "name": "reqlogue",
+  "private": true,
+  "packageManager": "pnpm@10.33.3",
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:web": "pnpm --filter @reqlogue/web dev",
+    "dev:api": "pnpm --filter @reqlogue/api dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "verify": "turbo verify",
+    "test:e2e": "pnpm --filter @reqlogue/web test:e2e"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.8"
+  }
+}

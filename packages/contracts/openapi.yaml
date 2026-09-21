@@ -1,0 +1,198 @@
+openapi: 3.1.0
+info:
+  title: reqlogue API
+  version: 0.1.0
+  description: >
+    Placeholder contract for the requirements-hearing agent.
+    Speech uses GPT-Realtime-Whisper. Mindmap and Markdown export use OrcaRouter.
+servers:
+  - url: http://127.0.0.1:8000
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: Liveness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /ready:
+    get:
+      operationId: getReady
+      responses:
+        "200":
+          description: Readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+  /v1/sessions/{sessionId}:
+    get:
+      operationId: getSessionWorkspace
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Meeting workspace snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionWorkspace"
+        "404":
+          description: Session not found
+  /v1/sessions/{sessionId}/transcript:
+    get:
+      operationId: getTranscript
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Transcript segments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TranscriptSegment"
+  /v1/sessions/{sessionId}/mindmap:
+    get:
+      operationId: getMindmap
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Live mindmap
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MindmapNode"
+  /v1/sessions/{sessionId}/advice:
+    get:
+      operationId: getAdvice
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Ambiguity, contradiction, and gap advice
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdviceItem"
+  /v1/sessions/{sessionId}/requirements.md:
+    get:
+      operationId: exportRequirements
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Markdown requirements document
+          content:
+            text/markdown:
+              schema:
+                type: string
+  /v1/realtime/stt/sessions:
+    post:
+      operationId: createRealtimeSttSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId]
+              properties:
+                sessionId:
+                  type: string
+      responses:
+        "200":
+          description: Placeholder GPT-Realtime-Whisper session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RealtimeSttSession"
+components:
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        service:
+          type: string
+          enum: [api, web]
+    ReadyResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+    TranscriptSegment:
+      type: object
+      required: [id, speaker, text, startedAt]
+      properties:
+        id: { type: string }
+        speaker: { type: string }
+        text: { type: string }
+        startedAt: { type: string, format: date-time }
+    MindmapNode:
+      type: object
+      required: [id, label, children]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/MindmapNode"
+    AdviceItem:
+      type: object
+      required: [id, kind, message]
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [ambiguity, contradiction, gap]
+        message: { type: string }
+    SessionWorkspace:
+      type: object
+      required: [id, title, status, transcript, mindmap, advice]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        status:
+          type: string
+          enum: [idle, live, ended]
+        transcript:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranscriptSegment"
+        mindmap:
+          $ref: "#/components/schemas/MindmapNode"
+        advice:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdviceItem"
+    RealtimeSttSession:
+      type: object
+      required: [sessionId, model, clientSecret, url]
+      properties:
+        sessionId: { type: string }
+        model:
+          type: string
+          enum: [gpt-realtime-whisper]
+        clientSecret: { type: string }
+        url: { type: string }

@@ -1,0 +1,30 @@
+.page {
+  display: grid;
+  gap: 28px;
+  max-width: 720px;
+}
+
+.lead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.capabilities {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.7;
+}
+
+.cta {
+  width: fit-content;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  padding: 10px 16px;
+  text-decoration: none;
+}

@@ -1,0 +1,31 @@
+name: api-verify
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: api-verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+      - name: Sync workspace
+        run: uv sync --package reqlogue-api
+      - name: Verify
+        working-directory: apps/api
+        run: uv run ruff check src tests && uv run mypy src && uv run pytest

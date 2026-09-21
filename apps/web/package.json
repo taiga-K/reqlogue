@@ -1,0 +1,59 @@
+{
+  "name": "@reqlogue/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "eslint .",
+    "architecture": "steiger src",
+    "test": "vitest run",
+    "check-stories": "node scripts/check-stories.mjs",
+    "verify": "pnpm typecheck && pnpm lint && pnpm architecture && pnpm check-stories && pnpm test",
+    "test:e2e": "playwright test",
+    "test:e2e:update-snapshots": "playwright test --update-snapshots",
+    "storybook": "storybook dev -p 6006"
+  },
+  "dependencies": {
+    "@reqlogue/contracts": "workspace:*",
+    "next": "16.3.5",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@feature-sliced/steiger-plugin": "^0.7.0",
+    "@playwright/test": "^1.55.0",
+    "@storybook/addon-a11y": "^10.6.0",
+    "@storybook/addon-vitest": "^10.6.0",
+    "@storybook/nextjs-vite": "^10.6.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitest/browser": "^4.1.11",
+    "@vitest/browser-playwright": "^4.1.11",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "jsdom": "^26.1.0",
+    "msw": "^2.11.2",
+    "msw-storybook-addon": "^3.0.3",
+    "playwright": "^1.55.0",
+    "steiger": "^0.6.0",
+    "storybook": "^10.6.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^4.1.11"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+.list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  gap: 6px;
+  border-left: 3px solid var(--border);
+  padding-left: 10px;
+}
+
+.kind {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ambiguity {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.contradiction {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+.gap {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.message {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}

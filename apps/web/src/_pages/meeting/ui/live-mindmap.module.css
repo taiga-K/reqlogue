@@ -1,0 +1,14 @@
+.tree {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.leaf {
+  margin: 0.35rem 0;
+  line-height: 1.5;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}

@@ -1,0 +1,29 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.idle {
+  background: #e7e5e4;
+  color: #44403c;
+}
+
+.live {
+  background: #ccfbf1;
+  color: #115e59;
+}
+
+.ended {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.degraded {
+  background: #ffedd5;
+  color: #9a3412;
+}

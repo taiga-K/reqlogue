@@ -1,0 +1,22 @@
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 16px 24px;
+}
+
+.brand {
+  color: inherit;
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
