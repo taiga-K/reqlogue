@@ -1,0 +1,213 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: 1.25rem 3.5rem 3rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  min-height: 3.5rem;
+}
+
+.wordmark {
+  width: auto;
+  height: 2.4rem;
+}
+
+.hero {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(18rem, 28rem) minmax(20rem, 1fr);
+  gap: 2rem 3rem;
+  align-items: center;
+  padding: 1.5rem 0 2rem;
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  max-width: 28rem;
+}
+
+.title {
+  margin: 0 0 1.5rem;
+  font-size: clamp(2.4rem, 4.6vw, 3.6rem);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.lead,
+.body {
+  margin: 0 0 0.7rem;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #3d3d3d;
+}
+
+.body:last-of-type {
+  margin-bottom: 2rem;
+}
+
+.art {
+  position: relative;
+  min-height: 34rem;
+}
+
+.circleBlush,
+.circleMint,
+.circleYellow,
+.flowerCoral,
+.flowerMint,
+.bubbleDots,
+.bubbleSpeak,
+.bubbleLines,
+.arrows,
+.document,
+.character {
+  position: absolute;
+  height: auto;
+}
+
+.circleBlush {
+  right: -4%;
+  bottom: -8%;
+  width: 15rem;
+  z-index: 0;
+}
+
+.circleMint {
+  top: 38%;
+  right: -6%;
+  width: 8.5rem;
+  z-index: 0;
+}
+
+.circleYellow {
+  left: 6%;
+  bottom: 8%;
+  width: 5.5rem;
+  z-index: 0;
+}
+
+.plusCoral,
+.plusMint {
+  position: absolute;
+  z-index: 1;
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.plusCoral::before,
+.plusCoral::after,
+.plusMint::before,
+.plusMint::after {
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 2px;
+  background: currentColor;
+  content: "";
+}
+
+.plusCoral::after,
+.plusMint::after {
+  inset: 0 50% 0 auto;
+  width: 2px;
+  height: 100%;
+}
+
+.plusCoral {
+  top: 6%;
+  left: 36%;
+  color: #f7b6be;
+}
+
+.plusMint {
+  right: 18%;
+  bottom: 28%;
+  color: #bfe8dc;
+}
+
+.flowerCoral {
+  top: 2%;
+  left: 34%;
+  width: 1.7rem;
+  z-index: 1;
+}
+
+.flowerMint {
+  top: 22%;
+  right: 26%;
+  width: 1.4rem;
+  z-index: 1;
+}
+
+.bubbleDots,
+.bubbleSpeak,
+.bubbleLines,
+.arrows,
+.document,
+.character {
+  z-index: 2;
+}
+
+.bubbleDots {
+  top: 8%;
+  left: 4%;
+  width: 9.5rem;
+}
+
+.bubbleSpeak {
+  top: 0;
+  left: 36%;
+  width: 11rem;
+}
+
+.bubbleLines {
+  top: 9%;
+  right: 6%;
+  width: 9.5rem;
+}
+
+.arrows {
+  top: 26%;
+  left: 18%;
+  width: 16rem;
+}
+
+.document {
+  top: 40%;
+  left: 14%;
+  width: 17rem;
+}
+
+.character {
+  top: 46%;
+  right: 2%;
+  width: 12.5rem;
+}
+
+@media (max-width: 860px) {
+  .page {
+    padding: 1rem 1.25rem 2.5rem;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .art {
+    min-height: 26rem;
+  }
+
+  .document {
+    width: 13rem;
+  }
+
+  .character {
+    width: 9.5rem;
+  }
+}
