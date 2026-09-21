@@ -1,44 +1,44 @@
-# reqlogue — コーディングエージェント向け指示
+# reqlogue 開発ガイド
 
-要件定義ヒアリング用の AI エージェント。会議音声をリアルタイムで文字起こしし、その場でマインドマップを更新し、曖昧・矛盾・漏れを助言し、終了後に Markdown の要件定義書を出力する。
+reqlogue は、要件定義ヒアリングを支援する AI エージェントです。会議音声をリアルタイムで文字起こしし、その場でマインドマップを更新し、曖昧・矛盾・漏れを検出して助言を行い、会議終了後に Markdown 形式の要件定義書を出力します。
 
-実装は依頼されたスライスのみ対応する。空の `web/`・`api/`・`contracts/` や空ディレクトリを事前に量産しない。
+実装は依頼された機能スライスに限定し、必要なディレクトリやファイルを順次作成します。
 
 ## ディレクトリ構成
 
-ルート直下にデプロイ単位を配置する。
+ルート直下に各デプロイ単位および共有資産を配置します。
 
-| パス | 役割 |
+| パス | 役割・技術スタック |
 |---|---|
-| `web/` | Next.js App Router + FSD |
-| `api/` | FastAPI + クリーンアーキテクチャ |
-| `contracts/openapi.yaml` | HTTP 契約の正本。web と api が共有する唯一の資産 |
-| `docs/` | 方針・設計。コードと一緒に管理する |
+| `web/` | フロントエンド: Next.js App Router + FSD (Feature-Sliced Design) |
+| `api/` | バックエンド: Python / FastAPI + クリーンアーキテクチャ |
+| `contracts/openapi.yaml` | HTTP 契約の正本。web と api が共有する資産 |
+| `docs/` | プロジェクト方針・設計ドキュメント |
 
-## `web/` — FSD
+## `web/` — FSD (Feature-Sliced Design)
 
-[FSD × Next.js ガイド](https://fsd.how/ja/docs/guides/tech/with-nextjs/) に従う。Next.js の予約ディレクトリは `web/` 直下、FSD 層は `web/src/` 配下のみに配置する。FSD の `app` / `pages` 層は `_app` / `_pages` に改名する。
+フロントエンドは [FSD × Next.js ガイド](https://fsd.how/ja/docs/guides/tech/with-nextjs/) に沿って構成します。Next.js の予約ディレクトリは `web/` 直下に配置し、FSD のレイヤー構造は `web/src/` 配下に集約します。Next.js との名称衝突を避けるため、FSD の `app` / `pages` 層は `_app` / `_pages` とします。
 
-- `web/app/` は Next.js のルーティング入口とし、再エクスポートのみ行う。画面の実装は `src/_pages/`
+- `web/app/`: Next.js のルーティング入口。ページコンポーネントの再エクスポートを担当
+- `src/_pages/`: 各画面の組み立てと画面固有の実装
 - レイヤー依存方向: `_app → _pages → widgets → features → entities → shared`
-- 全層を最初から作らない。単一画面の処理を無理に `features/` へ切り出さない
-- Route Handler は入口の変換（認証クッキーの橋渡し、ヘルスチェック）のみに留める。業務ロジックは `api` へ委譲する
+- 構成規則: 各層は必要に応じて順次導入します。単一画面に閉じる処理は画面内に留め、複数画面で再利用する処理を `features/` や `entities/` へ配置します
+- Route Handler: 認証クッキーの受け渡しやヘルスチェックなど、ルーティング境界での変換処理を担当します。業務ロジックは `api` へ集約します
 
 ## `api/` — クリーンアーキテクチャ
 
-レイヤー名がディレクトリ名に対応する。コンテキスト分割は境界が実際に分かれてから行う。
+バックエンドは、レイヤー名とディレクトリ名を直接対応させたクリーンアーキテクチャを採用します。コンテキスト分割は境界が明確になった段階で行います。
 
-- `domain` — 外側へ依存しない。Pydantic モデルを流用しない
-- `application` — domain と port だけに依存する
-- `infrastructure` — Whisper / OrcaRouter / DB など port の実装
-- `presentation` — FastAPI / WebSocket。HTTP スキーマ（リクエスト・レスポンス DTO）はここに配置する
-- `main` — 設定・DI・アプリ組み立てのみが実装を配線する
+- `domain`: 純粋なドメインモデルとビジネスルール。外部フレームワークから独立して定義します
+- `application`: ユースケースとインターフェース（port）。domain と port を利用して業務フローを組み立てます
+- `infrastructure`: port の具体的な実装。Whisper、OrcaRouter、データベースなどの外部アダプターを担当します
+- `presentation`: FastAPI ルーターおよび WebSocket ハンドラー。リクエスト・レスポンス DTO（HTTP スキーマ）を定義します
+- `main`: 設定読み込み、依存性注入（DI）、アプリケーションの起動配線を担当します
+- 依存性の規則: 依存方向は常に外側から内側（presentation / infrastructure → application → domain）へ向けます
 
-依存方向: `domain` はフレームワークを知らない。`infrastructure` と `presentation` は `application` の port を実装・呼び出し、内側へは依存しない。
+## 契約 (`contracts/`)
 
-## 契約
-
-- 正本は `contracts/openapi.yaml`
-- FastAPI の `/openapi.json` は実行時生成物。CI で `contracts/` と差分を検証する
-- `web/src/shared/api/` は OpenAPI からクライアントを生成する
-- リアルタイム契約が必要になった段階で `contracts/asyncapi.yaml` を追加する
+- `contracts/openapi.yaml` を HTTP 契約の正本として管理します
+- `web/src/shared/api/` は `contracts/openapi.yaml` からコード生成したクライアントを利用します
+- FastAPI の `/openapi.json` は、CI にて `contracts/openapi.yaml` との整合性を検証します
+- リアルタイム音声通信等の仕様が必要になった段階で `contracts/asyncapi.yaml` を追加します
