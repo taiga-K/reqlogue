@@ -177,4 +177,39 @@ describe("startMeetingCapture", () => {
     expect(stopTranscribe).toHaveBeenCalledTimes(1);
     expect(stopMix).toHaveBeenCalledTimes(1);
   });
+
+  it("releases tab and mic before the transcriber HTTP drain finishes", async () => {
+    const stopMix = vi.fn();
+    const held: { resolve?: () => void } = {};
+    const result = await startMeetingCapture(
+      ports({
+        mix: () =>
+          Promise.resolve({
+            stream: audioStream(),
+            stop: stopMix,
+          }),
+        transcribe: {
+          start: () =>
+            Promise.resolve({
+              stop: () =>
+                new Promise<void>((resolve) => {
+                  held.resolve = resolve;
+                }),
+            }),
+        },
+      }),
+    );
+    expect(result.status).toBe("started");
+    if (result.status !== "started") {
+      return;
+    }
+    const stopping = result.stop();
+    await vi.waitFor(() => {
+      expect(stopMix).toHaveBeenCalled();
+    });
+    const second = result.stop();
+    expect(stopMix).toHaveBeenCalledTimes(1);
+    held.resolve?.();
+    await Promise.all([stopping, second]);
+  });
 });

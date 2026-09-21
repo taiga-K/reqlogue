@@ -66,7 +66,6 @@ export function createOurApiTranscriber(): TranscriptionPort {
         stop: async () => {
           epoch += 1;
           await pump.stop();
-          await chain;
         },
       };
     },

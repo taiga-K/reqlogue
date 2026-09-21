@@ -159,9 +159,11 @@ describe("createOurApiTranscriber", () => {
     await vi.waitFor(() => {
       expect(held.resolve).toBeTypeOf("function");
     });
-    const stopped = handle.stop();
+    await handle.stop();
     held.resolve?.(jsonResponse({ text: "遅い" }));
-    await stopped;
+    await vi.waitFor(() => {
+      expect(finals).toEqual([]);
+    });
     expect(finals).toEqual([]);
   });
 

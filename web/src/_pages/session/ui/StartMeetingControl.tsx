@@ -27,6 +27,7 @@ type StartMeetingControlProps = {
 export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
   const [phase, setPhase] = useState<CapturePhase>({ status: "idle" });
   const stopRef = useRef<(() => Promise<void>) | null>(null);
+  const stoppingRef = useRef<Promise<void> | null>(null);
   const liveRef = useRef(false);
   const unmountedRef = useRef(false);
 
@@ -44,11 +45,20 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
   }, []);
 
   async function releaseCapture() {
-    const stopCapture = stopRef.current;
-    stopRef.current = null;
-    if (stopCapture !== null) {
-      await stopCapture();
+    if (stoppingRef.current !== null) {
+      await stoppingRef.current;
+      return;
     }
+    const stopCapture = stopRef.current;
+    if (stopCapture === null) {
+      return;
+    }
+    stopRef.current = null;
+    const stopping = stopCapture().finally(() => {
+      stoppingRef.current = null;
+    });
+    stoppingRef.current = stopping;
+    await stopping;
   }
 
   async function start() {

@@ -53,17 +53,16 @@ export async function startMeetingCapture(
     const mixedCapture = await ports.mix(tab, mic);
     mixed = mixedCapture;
     const session: { handle?: TranscriptionHandle } = {};
-    let released = false;
-    const stopAll = async () => {
-      if (released) {
-        return;
+    let inflight: Promise<void> | undefined;
+    const stopAll = () => {
+      if (inflight !== undefined) {
+        return inflight;
       }
-      released = true;
-      try {
-        await session.handle?.stop();
-      } finally {
+      inflight = (async () => {
         mixedCapture.stop();
-      }
+        await session.handle?.stop();
+      })();
+      return inflight;
     };
     session.handle = await ports.transcribe.start(
       mixedCapture.stream,
