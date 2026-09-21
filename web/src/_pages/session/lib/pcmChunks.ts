@@ -24,6 +24,7 @@ export async function startPcmChunks(
   onChunk: (pcm: ArrayBuffer) => void,
   context = new AudioContext({ sampleRate: PCM_RATE }),
 ): Promise<PcmChunkHandle> {
+  await context.resume();
   const source = context.createMediaStreamSource(stream);
   const workletUrl = URL.createObjectURL(
     new Blob([WORKLET_SOURCE], { type: "application/javascript" }),

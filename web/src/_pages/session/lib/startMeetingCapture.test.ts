@@ -15,29 +15,45 @@ function silentStream(): MediaStream {
   } as unknown as MediaStream;
 }
 
+function ports(overrides: Partial<CapturePorts> = {}): CapturePorts {
+  return {
+    captureDisplay: () => Promise.resolve(audioStream()),
+    captureMic: () => Promise.resolve(audioStream()),
+    mix: () =>
+      Promise.resolve({
+        stream: audioStream(),
+        stop() {},
+      }),
+    transcribe: {
+      start: () => Promise.resolve({ stop: async () => {} }),
+    },
+    appendTranscript: () => {},
+    onTranscribeFailure: () => {},
+    ...overrides,
+  };
+}
+
 describe("startMeetingCapture", () => {
   it("starts when tab audio and transcription are available", async () => {
     const appendTranscript = vi.fn();
-    const stopTranscribe = vi.fn(async () => {});
+    const stopTranscribe = vi.fn(() => Promise.resolve());
     const stopMix = vi.fn();
-    const ports: CapturePorts = {
-      captureDisplay: () => Promise.resolve(audioStream()),
-      captureMic: () => Promise.resolve(audioStream()),
-      mix: () =>
-        Promise.resolve({
-          stream: audioStream(),
-          stop: stopMix,
-        }),
-      transcribe: {
-        start: (_stream, onFinal) => {
-          onFinal("こんにちは", new Date("2026-09-21T16:00:00.000Z"));
-          return Promise.resolve({ stop: stopTranscribe });
+    const result = await startMeetingCapture(
+      ports({
+        mix: () =>
+          Promise.resolve({
+            stream: audioStream(),
+            stop: stopMix,
+          }),
+        transcribe: {
+          start: (_stream, onFinal) => {
+            onFinal("こんにちは", new Date("2026-09-21T16:00:00.000Z"));
+            return Promise.resolve({ stop: stopTranscribe });
+          },
         },
-      },
-      appendTranscript,
-    };
-
-    const result = await startMeetingCapture(ports);
+        appendTranscript,
+      }),
+    );
     expect(result.status).toBe("started");
     expect(appendTranscript).toHaveBeenCalledWith(
       new Date("2026-09-21T16:00:00.000Z"),
@@ -51,36 +67,114 @@ describe("startMeetingCapture", () => {
   });
 
   it("fails when the tab has no audio track", async () => {
-    const result = await startMeetingCapture({
-      captureDisplay: () => Promise.resolve(silentStream()),
-      captureMic: () => Promise.resolve(audioStream()),
-      mix: () => {
-        throw new Error("mix should not run");
-      },
-      transcribe: {
-        start: () => {
-          throw new Error("transcribe should not run");
+    const result = await startMeetingCapture(
+      ports({
+        captureDisplay: () => Promise.resolve(silentStream()),
+        mix: () => {
+          throw new Error("mix should not run");
         },
-      },
-      appendTranscript: () => {},
-    });
+        transcribe: {
+          start: () => {
+            throw new Error("transcribe should not run");
+          },
+        },
+      }),
+    );
     expect(result).toEqual({ status: "failed", reason: "no-tab-audio" });
   });
 
   it("fails when display capture is denied", async () => {
-    const result = await startMeetingCapture({
-      captureDisplay: () => Promise.reject(new Error("denied")),
-      captureMic: () => Promise.resolve(audioStream()),
-      mix: () => {
-        throw new Error("mix should not run");
-      },
-      transcribe: {
-        start: () => {
-          throw new Error("transcribe should not run");
+    const result = await startMeetingCapture(
+      ports({
+        captureDisplay: () => Promise.reject(new Error("denied")),
+        mix: () => {
+          throw new Error("mix should not run");
         },
-      },
-      appendTranscript: () => {},
-    });
+        transcribe: {
+          start: () => {
+            throw new Error("transcribe should not run");
+          },
+        },
+      }),
+    );
     expect(result).toEqual({ status: "failed", reason: "permission-denied" });
+  });
+
+  it("releases mixed media when transcribe stop rejects", async () => {
+    const stopMix = vi.fn();
+    const result = await startMeetingCapture(
+      ports({
+        mix: () =>
+          Promise.resolve({
+            stream: audioStream(),
+            stop: stopMix,
+          }),
+        transcribe: {
+          start: () =>
+            Promise.resolve({
+              stop: () => Promise.reject(new Error("stop failed")),
+            }),
+        },
+      }),
+    );
+    expect(result.status).toBe("started");
+    if (result.status === "started") {
+      await expect(result.stop()).rejects.toThrow("stop failed");
+    }
+    expect(stopMix).toHaveBeenCalled();
+  });
+
+  it("stops capture when transcription fails at runtime", async () => {
+    const stopMix = vi.fn();
+    const stopTranscribe = vi.fn(() => Promise.resolve());
+    const onTranscribeFailure = vi.fn();
+    let fail: (() => void) | undefined;
+    const result = await startMeetingCapture(
+      ports({
+        mix: () =>
+          Promise.resolve({
+            stream: audioStream(),
+            stop: stopMix,
+          }),
+        transcribe: {
+          start: (_stream, _onFinal, onFailure) => {
+            fail = onFailure;
+            return Promise.resolve({ stop: stopTranscribe });
+          },
+        },
+        onTranscribeFailure,
+      }),
+    );
+    expect(result.status).toBe("started");
+    fail?.();
+    await vi.waitFor(() => {
+      expect(stopTranscribe).toHaveBeenCalled();
+      expect(stopMix).toHaveBeenCalled();
+      expect(onTranscribeFailure).toHaveBeenCalled();
+    });
+  });
+
+  it("releases media only once when stop is called again after unmount", async () => {
+    const stopMix = vi.fn();
+    const stopTranscribe = vi.fn(() => Promise.resolve());
+    const result = await startMeetingCapture(
+      ports({
+        mix: () =>
+          Promise.resolve({
+            stream: audioStream(),
+            stop: stopMix,
+          }),
+        transcribe: {
+          start: () => Promise.resolve({ stop: stopTranscribe }),
+        },
+      }),
+    );
+    expect(result.status).toBe("started");
+    if (result.status === "started") {
+      await result.stop();
+      await result.stop();
+    }
+    expect(stopTranscribe).toHaveBeenCalledTimes(1);
+    expect(stopMix).toHaveBeenCalledTimes(1);
   });
 });

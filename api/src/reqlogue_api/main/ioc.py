@@ -24,4 +24,6 @@ def build_transcriber(
         if settings.openai_api_key == "":
             raise RuntimeError("OPENAI_API_KEY is required for the openai transcriber")
         return OpenAiRealtimeTranscriber(settings.openai_api_key, connect)
-    return StubTranscriber()
+    if settings.transcriber == "stub":
+        return StubTranscriber()
+    raise RuntimeError(f"Unsupported transcriber: {settings.transcriber}")

@@ -5,12 +5,19 @@ from collections.abc import Awaitable, Callable
 
 from reqlogue_api.domain.transcript import TranscriptText
 from reqlogue_api.infrastructure.openai_events import (
+    is_error_event,
     parse_event_message,
     transcript_from_event,
 )
 
 OPENAI_REALTIME_URL = "wss://api.openai.com/v1/realtime?intent=transcription"
 WHISPER_MODEL = "gpt-realtime-whisper"
+TRANSCRIPT_WAIT_SECONDS = 15.0
+
+
+class TranscriptWaitError(Exception):
+    pass
+
 
 SessionUpdate = dict[str, object]
 
@@ -76,12 +83,19 @@ async def _send_json(websocket: object, payload: object) -> None:
 
 async def _wait_for_transcript(websocket: object) -> str:
     recv = getattr(websocket, "recv")
-    while True:
-        raw = recv()
-        if asyncio.iscoroutine(raw):
-            raw = await raw
-        if not isinstance(raw, str):
-            continue
-        text = transcript_from_event(parse_event_message(raw))
-        if text is not None:
-            return text
+    try:
+        async with asyncio.timeout(TRANSCRIPT_WAIT_SECONDS):
+            while True:
+                raw = recv()
+                if asyncio.iscoroutine(raw):
+                    raw = await raw
+                if not isinstance(raw, str):
+                    continue
+                payload = parse_event_message(raw)
+                if is_error_event(payload):
+                    raise TranscriptWaitError("transcription error")
+                text = transcript_from_event(payload)
+                if text is not None:
+                    return text
+    except TimeoutError as error:
+        raise TranscriptWaitError("transcription timed out") from error

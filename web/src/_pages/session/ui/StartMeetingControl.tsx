@@ -27,16 +27,34 @@ type StartMeetingControlProps = {
 export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
   const [phase, setPhase] = useState<CapturePhase>({ status: "idle" });
   const stopRef = useRef<(() => Promise<void>) | null>(null);
+  const liveRef = useRef(false);
+  const unmountedRef = useRef(false);
 
   useEffect(() => {
+    unmountedRef.current = false;
     return () => {
-      void stopRef.current?.();
+      unmountedRef.current = true;
+      liveRef.current = false;
+      const stopCapture = stopRef.current;
       stopRef.current = null;
+      if (stopCapture !== null) {
+        void stopCapture();
+      }
     };
   }, []);
 
+  async function releaseCapture() {
+    const stopCapture = stopRef.current;
+    stopRef.current = null;
+    if (stopCapture !== null) {
+      await stopCapture();
+    }
+  }
+
   async function start() {
     setPhase({ status: "requesting" });
+    liveRef.current = true;
+    const startGate = { failed: false };
     ensureMeeting(meetingId);
     const result = await startMeetingCapture({
       captureDisplay,
@@ -44,15 +62,34 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
       mix: mixTabAndMic,
       transcribe: createTranscriber(),
       appendTranscript: (at, text) => {
+        if (!liveRef.current) {
+          return;
+        }
         appendMeetingTranscript(meetingId, at, text);
       },
+      onTranscribeFailure: () => {
+        startGate.failed = true;
+        void failRuntime();
+      },
     });
+    if (unmountedRef.current) {
+      liveRef.current = false;
+      if (result.status === "started") {
+        await result.stop();
+      }
+      return;
+    }
     switch (result.status) {
       case "started":
         stopRef.current = result.stop;
+        if (startGate.failed) {
+          await result.stop();
+          return;
+        }
         setPhase({ status: "capturing" });
         return;
       case "failed":
+        liveRef.current = false;
         stopRef.current = null;
         setPhase({ status: "failed", reason: result.reason });
         return;
@@ -64,13 +101,33 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
   }
 
   async function stop() {
-    const stopCapture = stopRef.current;
-    stopRef.current = null;
-    if (stopCapture !== null) {
-      await stopCapture();
+    liveRef.current = false;
+    try {
+      await releaseCapture();
+    } catch {
+      void 0;
+    } finally {
+      if (!unmountedRef.current) {
+        clearMeeting(meetingId);
+        setPhase({ status: "idle" });
+      }
     }
-    clearMeeting(meetingId);
-    setPhase({ status: "idle" });
+  }
+
+  async function failRuntime() {
+    if (!liveRef.current) {
+      return;
+    }
+    liveRef.current = false;
+    try {
+      await releaseCapture();
+    } catch {
+      void 0;
+    } finally {
+      if (!unmountedRef.current) {
+        setPhase({ status: "failed", reason: "transcribe-unavailable" });
+      }
+    }
   }
 
   async function onClick() {

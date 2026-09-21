@@ -9,6 +9,7 @@ export type TranscriptionPort = {
   start: (
     stream: MediaStream,
     onFinal: (text: string, at: Date) => void,
+    onFailure: () => void,
   ) => Promise<TranscriptionHandle>;
 };
 
@@ -18,6 +19,7 @@ export type CapturePorts = {
   mix: (tab: MediaStream, mic: MediaStream) => Promise<MixedCapture>;
   transcribe: TranscriptionPort;
   appendTranscript: (at: Date, text: string) => void;
+  onTranscribeFailure: () => void;
 };
 
 export type CaptureStartResult =
@@ -50,18 +52,33 @@ export async function startMeetingCapture(
   try {
     const mixedCapture = await ports.mix(tab, mic);
     mixed = mixedCapture;
-    const handle = await ports.transcribe.start(
+    const session: { handle?: TranscriptionHandle } = {};
+    let released = false;
+    const stopAll = async () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      try {
+        await session.handle?.stop();
+      } finally {
+        mixedCapture.stop();
+      }
+    };
+    session.handle = await ports.transcribe.start(
       mixedCapture.stream,
       (text, at) => {
         ports.appendTranscript(at, text);
       },
+      () => {
+        void stopAll().finally(() => {
+          ports.onTranscribeFailure();
+        });
+      },
     );
     return {
       status: "started",
-      stop: async () => {
-        await handle.stop();
-        mixedCapture.stop();
-      },
+      stop: stopAll,
     };
   } catch {
     mixed?.stop();

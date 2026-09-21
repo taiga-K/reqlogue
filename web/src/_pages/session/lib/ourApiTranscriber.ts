@@ -39,18 +39,35 @@ export function parseTranscriptResponse(value: unknown): string | null {
   return text;
 }
 
-function createOurApiTranscriber(): TranscriptionPort {
+export function createOurApiTranscriber(): TranscriptionPort {
   return {
-    async start(stream, onFinal) {
+    async start(stream, onFinal, onFailure) {
+      let epoch = 0;
+      let chain: Promise<void> = Promise.resolve();
       const pump = await startPcmChunks(stream, (pcm) => {
-        void postPcm(pcm).then((text) => {
-          if (text !== null) {
-            onFinal(text, new Date());
+        const spokenAt = new Date();
+        chain = chain.then(async () => {
+          const started = epoch;
+          try {
+            const text = await postPcm(pcm);
+            if (started !== epoch || text === null) {
+              return;
+            }
+            onFinal(text, spokenAt);
+          } catch {
+            if (started === epoch) {
+              epoch += 1;
+              onFailure();
+            }
           }
         });
       });
       return {
-        stop: () => pump.stop(),
+        stop: async () => {
+          epoch += 1;
+          await pump.stop();
+          await chain;
+        },
       };
     },
   };
@@ -63,13 +80,22 @@ async function postPcm(pcm: ArrayBuffer): Promise<string | null> {
     body: pcm,
   });
   if (!response.ok) {
-    return null;
+    throw new Error("transcription unavailable");
   }
-  let value: unknown;
-  try {
-    value = await response.json();
-  } catch {
-    return null;
+  const value: unknown = await response.json();
+  if (!hasTranscriptText(value)) {
+    throw new Error("invalid transcript response");
   }
   return parseTranscriptResponse(value);
+}
+
+function hasTranscriptText(
+  value: unknown,
+): value is { readonly text: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "text" in value &&
+    typeof value.text === "string"
+  );
 }
