@@ -2,11 +2,11 @@
 
 要件定義ヒアリング用の AI エージェント。会議音声をリアルタイムで文字起こしし、その場でマインドマップを更新し、曖昧・矛盾・漏れを助言し、終了後に Markdown の要件定義書を出力する。
 
-実装は依頼されたスライスのみ対応する。空の `web/`・`api/`・`contracts/` や空ディレクトリを事前に量産しない。Turborepo は使わない。
+実装は依頼されたスライスのみ対応する。空の `web/`・`api/`・`contracts/` や空ディレクトリを事前に量産しない。
 
 ## ディレクトリ構成
 
-ルート直下にデプロイ単位を配置する。`apps/` や `packages/` は作成しない。ルートに `package.json` や `pnpm-workspace.yaml` は配置しない。
+ルート直下にデプロイ単位を配置する。
 
 | パス | 役割 |
 |---|---|
@@ -14,8 +14,6 @@
 | `api/` | FastAPI + クリーンアーキテクチャ |
 | `contracts/openapi.yaml` | HTTP 契約の正本。web と api が共有する唯一の資産 |
 | `docs/` | 方針・設計。コードと一緒に管理する |
-
-後から追加してよいもの（現時点では作成しない）: `Taskfile.yml`、`contracts/asyncapi.yaml`、`worker/`、`.cursor/` / `skills/`。
 
 ## `web/` — FSD
 
@@ -40,7 +38,7 @@
 
 ## 契約
 
-- 正本は `contracts/openapi.yaml`。手書きの共有型や TypeScript の `packages/` は禁止
+- 正本は `contracts/openapi.yaml`
 - FastAPI の `/openapi.json` は実行時生成物。CI で `contracts/` と差分を検証する
-- `web/src/shared/api/` は OpenAPI から生成する。言語が異なるため、手で鏡写しにした型を作らない
-- リアルタイム契約が固まったら `contracts/asyncapi.yaml` を追加する
+- `web/src/shared/api/` は OpenAPI からクライアントを生成する
+- リアルタイム契約が必要になった段階で `contracts/asyncapi.yaml` を追加する
