@@ -1,3 +1,8 @@
+import {
+  parseAdviceCards,
+  type AdviceCard,
+} from "./adviceCard";
+
 declare const meetingIdBrand: unique symbol;
 
 export type MeetingId = string & { readonly [meetingIdBrand]: true };
@@ -8,6 +13,8 @@ export type MeetingRecord = {
   readonly transcript: string;
   readonly mindmapMarkdown: string;
   readonly sentTranscriptOffset: number;
+  readonly adviceCards: readonly AdviceCard[];
+  readonly adviceSentTranscriptOffset: number;
 };
 
 export function parseMeetingId(raw: string): MeetingId | null {
@@ -38,6 +45,8 @@ export function createMeetingRecord(
     transcript: "",
     mindmapMarkdown: "",
     sentTranscriptOffset: 0,
+    adviceCards: [],
+    adviceSentTranscriptOffset: 0,
   };
 }
 
@@ -77,24 +86,34 @@ export function parseMeetingRecord(
     "mindmapMarkdown" in value && typeof value.mindmapMarkdown === "string"
       ? value.mindmapMarkdown
       : "";
-  const sentTranscriptOffset = parseSentOffset(value);
   return {
     id,
     name: value.name,
     transcript: value.transcript,
     mindmapMarkdown,
-    sentTranscriptOffset,
+    sentTranscriptOffset: parseSentOffset(value),
+    adviceCards: parseAdviceCards(value),
+    adviceSentTranscriptOffset: parseAdviceOffset(value),
   };
 }
 
 function parseSentOffset(value: object): number {
-  if (
-    !("sentTranscriptOffset" in value) ||
-    typeof value.sentTranscriptOffset !== "number" ||
-    !Number.isInteger(value.sentTranscriptOffset) ||
-    value.sentTranscriptOffset < 0
-  ) {
+  if (!("sentTranscriptOffset" in value)) {
     return 0;
   }
-  return value.sentTranscriptOffset;
+  return offsetNumber(value.sentTranscriptOffset);
+}
+
+function parseAdviceOffset(value: object): number {
+  if (!("adviceSentTranscriptOffset" in value)) {
+    return 0;
+  }
+  return offsetNumber(value.adviceSentTranscriptOffset);
+}
+
+function offsetNumber(raw: unknown): number {
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
+    return 0;
+  }
+  return raw;
 }

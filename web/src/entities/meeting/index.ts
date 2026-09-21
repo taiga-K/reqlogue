@@ -1,4 +1,14 @@
 export {
+  ADVICE_COLUMNS,
+  acceptAdviceItems,
+  isAdviceColumn,
+  moveAdviceCard,
+  notifiedThemes,
+  type AdviceCard,
+  type AdviceColumn,
+  type AdviceDraft,
+} from "./model/adviceCard";
+export {
   appendTranscriptLine,
   createMeetingRecord,
   mintMeetingId,
@@ -9,6 +19,7 @@ export {
 } from "./model/meeting";
 export {
   appendMeetingTranscript,
+  saveAdviceProgress,
   saveMindmapProgress,
   clearAllMeetings,
   clearMeeting,

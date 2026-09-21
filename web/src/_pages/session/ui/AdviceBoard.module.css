@@ -1,0 +1,64 @@
+.board {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-height: 0;
+  padding: 1rem;
+  overflow: auto;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 12rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--secondary);
+}
+
+.column[data-drop-target="true"] {
+  outline: 2px solid #f26f67;
+}
+
+.heading {
+  margin: 0;
+  color: #242322;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--card);
+  color: #242322;
+  cursor: grab;
+}
+
+.card[data-dragging="true"] {
+  opacity: 0.55;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.reason,
+.question,
+.quote {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.quote {
+  color: var(--muted-foreground);
+}

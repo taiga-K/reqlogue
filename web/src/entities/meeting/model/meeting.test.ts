@@ -60,6 +60,8 @@ describe("parseMeetingRecord", () => {
       transcript: "line",
       mindmapMarkdown: "# 会議",
       sentTranscriptOffset: 4,
+      adviceCards: [],
+      adviceSentTranscriptOffset: 0,
     });
   });
 
@@ -76,6 +78,8 @@ describe("parseMeetingRecord", () => {
       transcript: "line",
       mindmapMarkdown: "",
       sentTranscriptOffset: 0,
+      adviceCards: [],
+      adviceSentTranscriptOffset: 0,
     });
   });
 
@@ -86,6 +90,8 @@ describe("parseMeetingRecord", () => {
       transcript: "",
       mindmapMarkdown: "",
       sentTranscriptOffset: 0,
+      adviceCards: [],
+      adviceSentTranscriptOffset: 0,
     });
     expect(
       parseMeetingRecord(id, { id: "other", name: "", transcript: "" }),

@@ -36,7 +36,8 @@ test("named session banner shows wordmark and name only", async ({ page }) => {
   await expect(banner.getByRole("button")).toHaveCount(0);
   await expect(banner.getByRole("link")).toHaveCount(0);
   await expect(page.getByText("自動更新")).toHaveCount(0);
-  await expect(page.getByText("マインドマップ")).toHaveCount(0);
+  await expect(banner.getByText("マインドマップ")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "マインドマップ" })).toBeVisible();
 });
 
 test("empty name still mints a session id", async ({ page }) => {
@@ -71,7 +72,7 @@ test("start meeting writes local transcript and end clears it", async ({
     .toContain("stub transcript");
 
   await expect(page.getByRole("main").getByRole("img")).toBeVisible();
-  await expect(page.getByText("マインドマップ")).toHaveCount(0);
+  await expect(page.getByRole("banner").getByText("マインドマップ")).toHaveCount(0);
   await expect(page.getByText("stub transcript")).toHaveCount(0);
 
   await page.getByRole("button", { name: "会議を終了" }).click();
@@ -158,6 +159,71 @@ test("starting a new meeting clears the previous record", async ({ page }) => {
   const secondKeys = await readMeetingKeys(page);
   expect(secondKeys).toHaveLength(1);
   expect(secondKeys[0]).not.toBe(firstKeys[0]);
+});
+
+test("session rail opens the advice board", async ({ page }) => {
+  await mockCaptureMedia(page);
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill(
+    "新サービスの打ち合わせ",
+  );
+  await page.getByRole("button", { name: "はじめる" }).click();
+  await expect(page).toHaveURL(UUID_SESSION);
+
+  const mindmap = page.getByRole("button", { name: "マインドマップ" });
+  const advice = page.getByRole("button", { name: "アドバイス" });
+  await expect(mindmap).toHaveAttribute("aria-current", "page");
+  await expect(mindmap.locator("svg")).toHaveAttribute("width", "32");
+  await expect(mindmap.locator("svg")).toHaveAttribute("height", "32");
+  await expect(mindmap.locator("svg")).toHaveAttribute("stroke-width", "1.9");
+  await expect(mindmap.locator("svg")).toHaveAttribute("stroke", "#F26F67");
+  await expect(advice.locator("svg")).toHaveAttribute("stroke", "#242322");
+  await expect(mindmap).toHaveCSS("background-color", "rgb(253, 232, 230)");
+
+  await advice.click();
+  await expect(advice).toHaveAttribute("aria-current", "page");
+  await expect(advice.locator("svg")).toHaveAttribute("stroke", "#F26F67");
+  await expect(mindmap.locator("svg")).toHaveAttribute("stroke", "#242322");
+  await expect(advice).toHaveCSS("background-color", "rgb(253, 232, 230)");
+  await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+    "アドバイス",
+    "対応中",
+    "解決済み",
+  ]);
+  await expect(page.getByText("議事メモ")).toHaveCount(0);
+  await expect(page.getByText("タスク")).toHaveCount(0);
+  await expect(page.getByText("ファイル")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("img")).toHaveCount(0);
+
+  await mindmap.click();
+  await expect(page.getByRole("heading", { level: 2 })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "会議を開始" }).click();
+  await advice.click();
+  const adviceColumn = page.getByRole("region", { name: "アドバイス" });
+  const card = adviceColumn.getByRole("button");
+  await expect(
+    adviceColumn.getByRole("heading", { level: 3, name: "確認したい点" }),
+  ).toBeVisible();
+  await expect(page.getByText("stub transcript")).toHaveCount(0);
+  const doing = page.getByRole("region", { name: "対応中" });
+  await card.dragTo(doing, { steps: 20 });
+  await expect(
+    doing.getByRole("heading", { level: 3, name: "確認したい点" }),
+  ).toBeVisible();
+
+  await mindmap.click();
+  const svg = page.getByRole("main").getByRole("img");
+  await expect(svg).toBeVisible();
+  await page.getByRole("button", { name: "拡大" }).click();
+  const pose = await svg.locator("g").first().getAttribute("transform");
+  await advice.click();
+  await expect(svg).toBeHidden();
+  await mindmap.click();
+  await expect(svg.locator("g").first()).toHaveAttribute("transform", pose ?? "");
+
+  await page.getByRole("button", { name: "会議を終了" }).click();
+  await expect(page.getByRole("heading", { level: 3, name: "確認したい点" })).toHaveCount(0);
 });
 
 async function mockCaptureMedia(page: Page) {

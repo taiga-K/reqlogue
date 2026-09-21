@@ -15,6 +15,7 @@ def test_runtime_openapi_paths_match_contract(settings: Settings) -> None:
     assert set(runtime["paths"]) == set(contract["paths"])
     assert "/v1/transcription" in runtime["paths"]
     assert "/v1/mindmap" in runtime["paths"]
+    assert "/v1/advice" in runtime["paths"]
     dumped = yaml.dump(contract)
     assert "speaker" not in dumped
     assert "api.openai.com" not in dumped

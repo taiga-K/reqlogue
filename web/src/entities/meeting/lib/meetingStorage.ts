@@ -9,6 +9,7 @@ import {
 
 export const MEETING_STORAGE_PREFIX = "reqlogue.meeting.";
 const CHANGE_EVENT = "reqlogue-meeting-change";
+const parsedMeetings = new Map<string, { raw: string; record: MeetingRecord }>();
 
 export function meetingStorageKey(id: MeetingId): string {
   return `${MEETING_STORAGE_PREFIX}${id}`;
@@ -29,17 +30,30 @@ export function readMeeting(id: MeetingId): MeetingRecord | null {
   if (!hasLocalStorage()) {
     return null;
   }
-  const raw = localStorage.getItem(meetingStorageKey(id));
+  const key = meetingStorageKey(id);
+  const raw = localStorage.getItem(key);
   if (raw === null) {
+    parsedMeetings.delete(key);
     return null;
+  }
+  const cached = parsedMeetings.get(key);
+  if (cached !== undefined && cached.raw === raw) {
+    return cached.record;
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
+    parsedMeetings.delete(key);
     return null;
   }
-  return parseMeetingRecord(id, parsed);
+  const record = parseMeetingRecord(id, parsed);
+  if (record === null) {
+    parsedMeetings.delete(key);
+    return null;
+  }
+  parsedMeetings.set(key, { raw, record });
+  return record;
 }
 
 export function writeMeeting(record: MeetingRecord): void {
@@ -67,11 +81,8 @@ export function appendMeetingTranscript(
 ): MeetingRecord {
   const existing = readMeeting(id) ?? createMeetingRecord(id, "");
   const next: MeetingRecord = {
-    id: existing.id,
-    name: existing.name,
+    ...existing,
     transcript: appendTranscriptLine(existing.transcript, at, text),
-    mindmapMarkdown: existing.mindmapMarkdown,
-    sentTranscriptOffset: existing.sentTranscriptOffset,
   };
   writeMeeting(next);
   return next;
@@ -87,11 +98,27 @@ export function saveMindmapProgress(
     return null;
   }
   const next: MeetingRecord = {
-    id: existing.id,
-    name: existing.name,
-    transcript: existing.transcript,
+    ...existing,
     mindmapMarkdown: markdown,
     sentTranscriptOffset,
+  };
+  writeMeeting(next);
+  return next;
+}
+
+export function saveAdviceProgress(
+  id: MeetingId,
+  adviceCards: MeetingRecord["adviceCards"],
+  adviceSentTranscriptOffset: number,
+): MeetingRecord | null {
+  const existing = readMeeting(id);
+  if (existing === null) {
+    return null;
+  }
+  const next: MeetingRecord = {
+    ...existing,
+    adviceCards,
+    adviceSentTranscriptOffset,
   };
   writeMeeting(next);
   return next;

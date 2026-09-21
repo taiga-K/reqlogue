@@ -6,6 +6,7 @@ import {
   clearMeeting,
   MEETING_STORAGE_PREFIX,
   readMeeting,
+  saveAdviceProgress,
   saveMindmapProgress,
   startNewMeeting,
 } from "./meetingStorage";
@@ -23,6 +24,8 @@ describe("meetingStorage", () => {
       transcript: "",
       mindmapMarkdown: "",
       sentTranscriptOffset: 0,
+      adviceCards: [],
+      adviceSentTranscriptOffset: 0,
     });
     expect(readMeeting(record.id)?.name).toBe("新サービス");
     expect(Object.keys(localStorage)).toEqual([
@@ -68,7 +71,54 @@ describe("meetingStorage", () => {
       transcript: "",
       mindmapMarkdown: "# 会議\n\n- 要件",
       sentTranscriptOffset: 12,
+      adviceCards: [],
+      adviceSentTranscriptOffset: 0,
     });
+    clearMeeting(record.id);
+    expect(readMeeting(record.id)).toBeNull();
+  });
+
+  it("returns the same card list until the stored record changes", () => {
+    const record = startNewMeeting("会議", () => "meet-stable");
+    const first = readMeeting(record.id);
+    const second = readMeeting(record.id);
+    expect(second?.adviceCards).toBe(first?.adviceCards);
+    saveAdviceProgress(
+      record.id,
+      [
+        {
+          id: "card-1",
+          column: "advice",
+          title: "数量",
+          reason: "上限がない",
+          suggestedQuestion: "上限はありますか？",
+          quote: "数量の上限",
+        },
+      ],
+      0,
+    );
+    expect(readMeeting(record.id)?.adviceCards).not.toBe(first?.adviceCards);
+  });
+
+  it("keeps advice cards on the record and clears them with the meeting", () => {
+    const record = startNewMeeting("会議", () => "meet-advice");
+    const card = {
+      id: "card-1",
+      column: "doing" as const,
+      title: "数量",
+      reason: "上限がない",
+      suggestedQuestion: "上限はありますか？",
+      quote: "数量の上限",
+    };
+    saveAdviceProgress(record.id, [card], 8);
+    appendMeetingTranscript(
+      record.id,
+      new Date("2026-09-21T16:02:00.000Z"),
+      "続き",
+    );
+    saveMindmapProgress(record.id, "# 会議", 4);
+    expect(readMeeting(record.id)?.adviceCards).toEqual([card]);
+    expect(readMeeting(record.id)?.adviceSentTranscriptOffset).toBe(8);
     clearMeeting(record.id);
     expect(readMeeting(record.id)).toBeNull();
   });
