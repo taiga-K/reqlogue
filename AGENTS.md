@@ -20,7 +20,7 @@ reqlogue は、要件定義ヒアリングを支援する AI エージェント�
 フロントエンドは [FSD × Next.js ガイド](https://fsd.how/ja/docs/guides/tech/with-nextjs/) に沿って構成します。Next.js の予約ディレクトリは `web/` 直下に配置し、FSD のレイヤー構造は `web/src/` 配下に集約します。Next.js との名称衝突を避けるため、FSD の `app` / `pages` 層は `_app` / `_pages` とします。
 
 - `web/app/`: Next.js のルーティング入口。ページコンポーネントの再エクスポートを担当
-- `src/_pages/`: 各画面の組み立てと画面固有の実装
+- `web/src/_pages/`: 各画面の組み立てと画面固有の実装
 - レイヤー依存方向: `_app → _pages → widgets → features → entities → shared`
 - 構成規則: 各層は必要に応じて順次導入します。単一画面に閉じる処理は画面内に留め、複数画面で再利用する処理を `features/` や `entities/` へ配置します
 - Route Handler: 認証クッキーの受け渡しやヘルスチェックなど、ルーティング境界での変換処理を担当します。業務ロジックは `api` へ集約します
