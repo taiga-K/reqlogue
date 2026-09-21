@@ -6,6 +6,7 @@ from reqlogue_api.domain.mindmap import MindmapMarkdown, MindmapUpdate
 from reqlogue_api.infrastructure.orcarouter_mindmap import (
     MEETING_SUPPORT_LITE,
     ORCAROUTER_CHAT_URL,
+    SYSTEM_PROMPT,
     OrcaRouterMindmapGenerator,
     markdown_from_chat,
     strip_fence,
@@ -50,10 +51,17 @@ async def test_first_call_sends_delta_without_previous_map() -> None:
     assert payload["model"] == MEETING_SUPPORT_LITE
     messages = payload["messages"]
     assert isinstance(messages, list)
+    system = messages[0]
+    assert isinstance(system, dict)
+    assert system["content"] == SYSTEM_PROMPT
+    assert "頼んでいる対象を親にし" in SYSTEM_PROMPT
+    assert "同じ段に並べて切り離しません" in SYSTEM_PROMPT
     user = messages[1]
     assert isinstance(user, dict)
     assert user["content"] == (
-        "次の文字起こしからマインドマップの Markdown を作ってください。\n\n"
+        "次の文字起こしから、聞いた言葉だけを親と子でつないだ"
+        "マインドマップの Markdown を作ってください。"
+        "分類名への言い換えと、話していない手順は足さないでください。\n\n"
         "ログインはメールでやりたい"
     )
     assert "前回のマインドマップ" not in str(user["content"])
@@ -81,9 +89,10 @@ async def test_later_call_sends_previous_markdown_and_new_speech_only() -> None:
     user = payload["messages"][1]
     assert user["content"] == (
         "前回のマインドマップ Markdown です。"
-        "既存の見出しと文言は維持してください。"
-        "新しい発話だけを該当する枝へ足し、訂正はその枝だけ直し、"
-        "話題が変わったら最上段の見出しを足してください。\n\n"
+        "これまでの枝は、新しい発話が否定しない限り残してください。"
+        "足す言葉は、新しい発話にあった言葉だけにしてください。"
+        "質問だけでは枝を足さず、答えが選んだ言葉を子にしてください。"
+        "訂正はその枝だけ直し、話題が変わったら第1階層の枝を足してください。\n\n"
         "# 会議\n\n- ログイン\n\n"
         "新しい発話:\nパスワードも必要"
     )
