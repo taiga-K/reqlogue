@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib.sh"
+
+if ! RUN_ID="$(resolve_run_id)"; then
+  echo "cleanup: no current verification run; nothing to stop."
+  exit 0
+fi
+
+META="$(meta_file_for "$RUN_ID")"
+if [[ ! -f "$META" ]]; then
+  echo "cleanup: no meta for $RUN_ID; clearing CURRENT pointer only."
+  if [[ -f "$CURRENT_FILE" ]] && [[ "$(tr -d '[:space:]' < "$CURRENT_FILE")" == "$RUN_ID" ]]; then
+    rm -f "$CURRENT_FILE"
+  fi
+  exit 0
+fi
+
+load_meta "$RUN_ID"
+EVIDENCE_DIR="$REQLOGUE_VERIFY_EVIDENCE_DIR"
+RUN_DIR="$REQLOGUE_VERIFY_RUN_DIR"
+
+echo "cleanup run $RUN_ID (evidence kept at $EVIDENCE_DIR)"
+
+if [[ -n "${REQLOGUE_VERIFY_WEB_PID:-}" && "$REQLOGUE_VERIFY_WEB_PID" != "0" ]]; then
+  kill_tree "$REQLOGUE_VERIFY_WEB_PID"
+  echo "stopped web pid $REQLOGUE_VERIFY_WEB_PID"
+fi
+if [[ -n "${REQLOGUE_VERIFY_API_PID:-}" && "$REQLOGUE_VERIFY_API_PID" != "0" ]]; then
+  kill_tree "$REQLOGUE_VERIFY_API_PID"
+  echo "stopped api pid $REQLOGUE_VERIFY_API_PID"
+fi
+
+rm -rf "$RUN_DIR"
+if [[ -f "$CURRENT_FILE" ]] && [[ "$(tr -d '[:space:]' < "$CURRENT_FILE")" == "$RUN_ID" ]]; then
+  rm -f "$CURRENT_FILE"
+fi
+
+if [[ -d "$EVIDENCE_DIR" ]]; then
+  echo "evidence survived cleanup: $EVIDENCE_DIR"
+  ls -la "$EVIDENCE_DIR" || true
+else
+  echo "note: no evidence directory at $EVIDENCE_DIR"
+fi

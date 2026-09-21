@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib.sh"
+
+if ! RUN_ID="$(resolve_run_id)"; then
+  echo "unhealthy: no current verification run." >&2
+  echo "Launch one with $SCRIPT_DIR/launch. Do not drive :3000/:8000/:3217 unless this skill started them." >&2
+  exit 1
+fi
+
+load_meta "$RUN_ID"
+
+failures=0
+note() { printf '  %s\n' "$1"; }
+fail() { printf 'FAIL %s\n' "$1" >&2; failures=$((failures + 1)); }
+ok() { printf 'OK   %s\n' "$1"; }
+
+echo "doctor run $REQLOGUE_VERIFY_RUN_ID"
+note "repo  $REQLOGUE_VERIFY_REPO_ROOT"
+note "sha   $REQLOGUE_VERIFY_GIT_SHA"
+note "web   $REQLOGUE_VERIFY_WEB_URL pid $REQLOGUE_VERIFY_WEB_PID"
+note "api   $REQLOGUE_VERIFY_API_URL pid $REQLOGUE_VERIFY_API_PID with_api=$REQLOGUE_VERIFY_WITH_API"
+note "mock  $REQLOGUE_VERIFY_MOCKING"
+note "evidence $REQLOGUE_VERIFY_EVIDENCE_DIR"
+
+if [[ "$REQLOGUE_VERIFY_MOCKING" != "enabled" ]]; then
+  fail "this instance was not launched with NEXT_PUBLIC_API_MOCKING=enabled"
+else
+  ok "mocking=enabled (capture uses the in-app stub transcriber)"
+fi
+
+if ! pid_alive "$REQLOGUE_VERIFY_WEB_PID"; then
+  fail "web pid $REQLOGUE_VERIFY_WEB_PID is not running"
+else
+  ok "web pid $REQLOGUE_VERIFY_WEB_PID is alive"
+fi
+
+if pid_alive "$REQLOGUE_VERIFY_WEB_PID"; then
+  if port_owned_by_pid "$REQLOGUE_VERIFY_WEB_PID" "$REQLOGUE_VERIFY_WEB_PORT"; then
+    ok "port $REQLOGUE_VERIFY_WEB_PORT is owned by the launched web tree"
+  else
+    fail "port $REQLOGUE_VERIFY_WEB_PORT is not owned by pid $REQLOGUE_VERIFY_WEB_PID (refusing to drive a shared instance)"
+  fi
+fi
+
+if html_has_reqlogue_home "$REQLOGUE_VERIFY_WEB_URL"; then
+  ok "GET $REQLOGUE_VERIFY_WEB_URL/ is reqlogue home (title + 話すことに、集中しよう。)"
+else
+  fail "GET $REQLOGUE_VERIFY_WEB_URL/ is not the reqlogue home page"
+fi
+
+HEAD_SHA="$(git -C "$REQLOGUE_VERIFY_REPO_ROOT" rev-parse HEAD)"
+if [[ "$HEAD_SHA" == "$REQLOGUE_VERIFY_GIT_SHA" ]]; then
+  ok "git HEAD $HEAD_SHA matches the launched build"
+else
+  fail "git HEAD $HEAD_SHA differs from launched sha $REQLOGUE_VERIFY_GIT_SHA; relaunch after checkout changes"
+fi
+
+if [[ "$REQLOGUE_VERIFY_WITH_API" == "1" ]]; then
+  if ! pid_alive "$REQLOGUE_VERIFY_API_PID"; then
+    fail "api pid $REQLOGUE_VERIFY_API_PID is not running"
+  else
+    ok "api pid $REQLOGUE_VERIFY_API_PID is alive"
+  fi
+  if pid_alive "$REQLOGUE_VERIFY_API_PID"; then
+    if port_owned_by_pid "$REQLOGUE_VERIFY_API_PID" "$REQLOGUE_VERIFY_API_PORT"; then
+      ok "port $REQLOGUE_VERIFY_API_PORT is owned by the launched api tree"
+    else
+      fail "port $REQLOGUE_VERIFY_API_PORT is not owned by pid $REQLOGUE_VERIFY_API_PID"
+    fi
+  fi
+  health="$(curl -fsS --max-time 5 "$REQLOGUE_VERIFY_API_URL/health" || true)"
+  if [[ "$health" == '{"status":"ok"}' ]]; then
+    ok "GET $REQLOGUE_VERIFY_API_URL/health -> {\"status\":\"ok\"}"
+  else
+    fail "GET $REQLOGUE_VERIFY_API_URL/health expected {\"status\":\"ok\"}, got: $health"
+  fi
+else
+  ok "api not in this run (transcription-api is unreachable until launch --with-api)"
+fi
+
+if [[ "$failures" -ne 0 ]]; then
+  echo "unhealthy: $failures check(s) failed. Do not drive this instance." >&2
+  exit 1
+fi
+
+echo "healthy: instance is worth driving"
+echo "REQLOGUE_VERIFY_RUN_ID=$REQLOGUE_VERIFY_RUN_ID"
+echo "REQLOGUE_VERIFY_WEB_URL=$REQLOGUE_VERIFY_WEB_URL"
+echo "REQLOGUE_VERIFY_EVIDENCE_DIR=$REQLOGUE_VERIFY_EVIDENCE_DIR"
