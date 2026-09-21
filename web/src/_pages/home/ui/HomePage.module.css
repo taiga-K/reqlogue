@@ -1,58 +1,64 @@
+/* Ratios come from the 1024x585 mockup. --s is 1% of that mockup width,
+   capped by viewport height so the hero never overflows a short window. */
+
 .page {
+  --s: min(0.95vw, 1.5vh);
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  padding: 0.75rem 2.5rem 2.5rem;
+  padding: 0.75rem calc(7.3 * var(--s)) 1rem calc(11 * var(--s));
   background: #fffdfb;
 }
 
 .main {
   display: grid;
-  grid-template-columns: minmax(20rem, 34rem) 1fr;
+  grid-template-columns: minmax(0, 40.4fr) minmax(0, 39.6fr);
   align-items: center;
-  gap: 3rem;
+  column-gap: calc(1.7 * var(--s));
   flex: 1;
-  width: 100%;
-  max-width: 76rem;
+  width: min(100%, calc(81.7 * var(--s)));
   margin-inline: auto;
-  padding-block: 1.5rem 2rem;
+  padding-block: 0.5rem 1rem;
 }
 
 @media (max-width: 60rem) {
+  .page {
+    padding-inline: 2rem;
+  }
+
   .main {
     grid-template-columns: 1fr;
+    row-gap: 3rem;
   }
 }
 
 .invitation {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
-  max-width: 34rem;
+  min-width: 0;
 }
 
 .headline {
   margin: 0;
   max-width: 6em;
-  font-size: clamp(2.8rem, 6.5vw, 4.4rem);
+  font-size: max(2.4rem, calc(6.3 * var(--s)));
   font-weight: 800;
-  line-height: 1.18;
-  letter-spacing: -0.04em;
+  line-height: 1.1;
+  letter-spacing: -0.05em;
   color: #1a1a1a;
 }
 
 .lead {
-  margin: 0.35rem 0 0;
-  font-size: 1.28rem;
-  font-weight: 400;
-  line-height: 1.7;
+  margin: calc(2 * var(--s)) 0 0;
+  font-size: max(1.05rem, calc(1.9 * var(--s)));
+  font-weight: 700;
+  line-height: 1.4;
   color: #1a1a1a;
 }
 
 .body {
-  margin: 0;
-  max-width: 28rem;
-  font-size: 1rem;
-  line-height: 1.85;
+  margin: calc(2.5 * var(--s)) 0 0;
+  font-size: max(0.9rem, calc(1.27 * var(--s)));
+  line-height: 1.9;
   color: #1a1a1a;
 }

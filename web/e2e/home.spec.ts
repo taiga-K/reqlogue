@@ -23,6 +23,5 @@ test("home body exposes the meeting name draft", async ({ page }) => {
   );
   await expect(start).toBeEnabled();
 
-  await expect(page.getByRole("button", { name: "おためし" })).toBeVisible();
   await expect(page.getByRole("img", { name: "reqlogue" })).toHaveCount(1);
 });

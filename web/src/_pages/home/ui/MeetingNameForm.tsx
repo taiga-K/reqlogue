@@ -1,12 +1,14 @@
 "use client";
 
-import type { SyntheticEvent } from "react";
-import { useState } from "react";
+import { ArrowRight } from "lucide-react";
+import { useState, type SyntheticEvent } from "react";
+import { Button } from "@/shared/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/shared/ui/field";
+import { Input } from "@/shared/ui/input";
 import { draftOf } from "../model/meetingNameDraft";
 import styles from "./MeetingNameForm.module.css";
 
 const FIELD_ID = "meeting-name";
-const PRIVACY_NOTE_ID = "meeting-name-privacy";
 
 export function MeetingNameForm() {
   const [raw, setRaw] = useState("");
@@ -19,37 +21,31 @@ export function MeetingNameForm() {
 
   return (
     <form className={styles["form"]} onSubmit={handleSubmit}>
-      <label className={styles["label"]} htmlFor={FIELD_ID}>
-        今日の会議のなまえ
-      </label>
-      <input
-        className={styles["field"]}
-        id={FIELD_ID}
-        name="meetingName"
-        type="text"
-        value={raw}
-        placeholder="例：新サービスの打ち合わせ"
-        aria-describedby={PRIVACY_NOTE_ID}
-        autoComplete="off"
-        onChange={(event) => {
-          setRaw(event.currentTarget.value);
-        }}
-      />
-      <div className={styles["actions"]}>
-        <button
-          className={styles["primary"]}
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor={FIELD_ID}>今日の会議のなまえ</FieldLabel>
+          <Input
+            id={FIELD_ID}
+            name="meetingName"
+            autoComplete="off"
+            placeholder="例：新サービスの打ち合わせ"
+            value={raw}
+            className="h-[max(3rem,calc(4.9*var(--s)))] rounded-full bg-card px-[max(1.5rem,calc(2*var(--s)))]"
+            onChange={(event) => {
+              setRaw(event.currentTarget.value);
+            }}
+          />
+        </Field>
+        <Button
           type="submit"
+          size="lg"
           disabled={draft.status === "blank"}
+          className="h-[max(3rem,calc(4.9*var(--s)))] w-[calc(25.3*var(--s))] max-w-full rounded-full"
         >
           はじめる
-        </button>
-        <button className={styles["secondary"]} type="button">
-          おためし
-        </button>
-      </div>
-      <p className={styles["privacy"]} id={PRIVACY_NOTE_ID}>
-        相手の画面には表示されません
-      </p>
+          <ArrowRight data-icon="inline-end" />
+        </Button>
+      </FieldGroup>
     </form>
   );
 }

@@ -7,6 +7,7 @@ const roundedSans = M_PLUS_Rounded_1c({
   subsets: ["latin"],
   weight: ["400", "500", "700", "800"],
   display: "swap",
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ja">
+    <html lang="ja" className={roundedSans.variable}>
       <body className={roundedSans.className}>{children}</body>
     </html>
   );
