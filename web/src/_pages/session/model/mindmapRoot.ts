@@ -7,17 +7,8 @@ export function pinMindmapRoot(markdown: string, meetingName: string): string {
   }
   const heading = rootHeading(meetingName);
   const lines = markdown.split("\n");
-  const index = firstRootHeading(lines);
-  if (index === -1) {
-    return `${heading}\n\n${markdown}`;
-  }
-  const next = lines.slice();
-  next[index] = heading;
-  return next.join("\n");
-}
-
-function firstRootHeading(lines: readonly string[]): number {
   let fence: string | null = null;
+  let rooted = false;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
     const marker = FENCE.exec(line.trim());
@@ -26,9 +17,15 @@ function firstRootHeading(lines: readonly string[]): number {
         fence = marker[1] ?? null;
         continue;
       }
-      if (ROOT_HEADING.test(line)) {
-        return index;
+      if (!ROOT_HEADING.test(line)) {
+        continue;
       }
+      if (!rooted) {
+        lines[index] = heading;
+        rooted = true;
+        continue;
+      }
+      lines[index] = demoteH1(line);
       continue;
     }
     const close = marker?.[1];
@@ -41,7 +38,17 @@ function firstRootHeading(lines: readonly string[]): number {
       fence = null;
     }
   }
-  return -1;
+  if (!rooted) {
+    return `${heading}\n\n${lines.join("\n")}`;
+  }
+  return lines.join("\n");
+}
+
+function demoteH1(line: string): string {
+  if (line === "#") {
+    return "##";
+  }
+  return `#${line}`;
 }
 
 function rootHeading(meetingName: string): string {

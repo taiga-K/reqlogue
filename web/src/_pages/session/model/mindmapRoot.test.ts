@@ -36,6 +36,18 @@ describe("pinMindmapRoot", () => {
     expect(root.children[0]?.content).toBe("&#x8981;&#x4ef6;");
   });
 
+  it("keeps the meeting name as the visible root when the model adds another h1", () => {
+    const markdown = "# モデルの題\n\n## 認証\n\n- ログイン\n\n# 別話題";
+    const pinned = pinMindmapRoot(markdown, "test");
+    expect(pinned).toBe("# test\n\n## 認証\n\n- ログイン\n\n## 別話題");
+    const { root } = new Transformer().transform(pinned);
+    expect(root.content).toBe("test");
+    expect(root.children.map((child) => child.content)).toEqual([
+      "&#x8a8d;&#x8a3c;",
+      "&#x5225;&#x8a71;&#x984c;",
+    ]);
+  });
+
   it("adds a root when the model omits a heading", () => {
     expect(pinMindmapRoot("- ログイン", "test")).toBe("# test\n\n- ログイン");
   });
