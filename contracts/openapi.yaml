@@ -18,6 +18,13 @@ paths:
   /v1/transcription:
     post:
       operationId: transcribeAudio
+      parameters:
+        - name: X-Reqlogue-Overview
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Percent-encoded UTF-8 meeting overview that becomes the transcription prompt
       requestBody:
         required: true
         content:

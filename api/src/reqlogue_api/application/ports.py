@@ -2,11 +2,11 @@ from typing import Protocol
 
 from reqlogue_api.domain.advice import AdviceAnalysis, AdviceBatch
 from reqlogue_api.domain.mindmap import MindmapMarkdown, MindmapUpdate
-from reqlogue_api.domain.transcript import TranscriptText
+from reqlogue_api.domain.transcript import AudioTurn, TranscriptText
 
 
 class Transcriber(Protocol):
-    async def transcribe(self, pcm16_mono_24k: bytes) -> TranscriptText: ...
+    async def transcribe(self, turn: AudioTurn) -> TranscriptText: ...
 
 
 class MindmapGenerator(Protocol):

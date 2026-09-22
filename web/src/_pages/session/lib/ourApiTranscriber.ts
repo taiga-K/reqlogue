@@ -3,11 +3,11 @@ import type { TranscriptionPort } from "./startMeetingCapture";
 
 export const STUB_TRANSCRIPT = "stub transcript";
 
-export function createTranscriber(): TranscriptionPort {
+export function createTranscriber(overview: string): TranscriptionPort {
   if (process.env["NEXT_PUBLIC_API_MOCKING"] === "enabled") {
     return createStubTranscriber();
   }
-  return createOurApiTranscriber();
+  return createOurApiTranscriber(overview);
 }
 
 export function createStubTranscriber(): TranscriptionPort {
@@ -39,7 +39,7 @@ export function parseTranscriptResponse(value: unknown): string | null {
   return text;
 }
 
-export function createOurApiTranscriber(): TranscriptionPort {
+export function createOurApiTranscriber(overview: string): TranscriptionPort {
   return {
     async start(stream, onFinal, onFailure) {
       let epoch = 0;
@@ -49,7 +49,7 @@ export function createOurApiTranscriber(): TranscriptionPort {
         chain = chain.then(async () => {
           const started = epoch;
           try {
-            const text = await postPcm(pcm);
+            const text = await postPcm(pcm, overview);
             if (started !== epoch || text === null) {
               return;
             }
@@ -72,10 +72,20 @@ export function createOurApiTranscriber(): TranscriptionPort {
   };
 }
 
-async function postPcm(pcm: ArrayBuffer): Promise<string | null> {
+async function postPcm(
+  pcm: ArrayBuffer,
+  overview: string,
+): Promise<string | null> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/octet-stream",
+  };
+  const trimmed = overview.trim();
+  if (trimmed.length > 0) {
+    headers["X-Reqlogue-Overview"] = encodeURIComponent(trimmed);
+  }
   const response = await fetch(`${apiBaseUrl()}/v1/transcription`, {
     method: "POST",
-    headers: { "Content-Type": "application/octet-stream" },
+    headers,
     body: pcm,
   });
   if (!response.ok) {

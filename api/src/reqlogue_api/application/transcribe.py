@@ -1,11 +1,11 @@
 from reqlogue_api.application.ports import Transcriber
-from reqlogue_api.domain.transcript import TranscriptText
+from reqlogue_api.domain.transcript import AudioTurn, TranscriptText
 
 
 async def transcribe_audio(
     transcriber: Transcriber,
-    pcm16_mono_24k: bytes,
+    turn: AudioTurn,
 ) -> TranscriptText:
-    if len(pcm16_mono_24k) == 0:
+    if len(turn.pcm) == 0:
         return TranscriptText("")
-    return await transcriber.transcribe(pcm16_mono_24k)
+    return await transcriber.transcribe(turn)
