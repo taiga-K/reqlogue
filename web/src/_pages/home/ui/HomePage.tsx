@@ -29,7 +29,7 @@ export function HomePage() {
             href="/prepare"
             className={buttonVariants({
               size: "lg",
-              className: `${styles["start"]} h-[max(3rem,calc(4.9*var(--s)))] w-[calc(25.3*var(--s))] max-w-full rounded-full`,
+              className: `${styles["start"] ?? ""} h-[max(3rem,calc(4.9*var(--s)))] w-[calc(25.3*var(--s))] max-w-full rounded-full`,
             })}
           >
             はじめる
