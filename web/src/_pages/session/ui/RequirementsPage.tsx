@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { parseMeetingId } from "@/entities/meeting";
-import pageStyles from "./SessionPage.module.css";
+import styles from "./RequirementsPage.module.css";
 import { RequirementsView } from "./RequirementsView";
 
 type RequirementsPageProps = {
@@ -17,7 +17,9 @@ export async function RequirementsPage({ params }: RequirementsPageProps) {
   }
 
   return (
-    <div className={pageStyles["page"]}>
+    // Theme copies data-astryx-theme onto <html>. This value ends that @scope
+    // before the meeting header so theme.css cannot restyle the banner h1.
+    <div className={styles["page"]} data-astryx-theme="reqlogue-page">
       <RequirementsView meetingId={id} />
     </div>
   );

@@ -1,0 +1,4 @@
+/* theme.css sets color-scheme: light dark on :root. This page stays light. */
+html {
+  color-scheme: light;
+}
