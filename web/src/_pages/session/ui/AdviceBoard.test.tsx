@@ -2,15 +2,6 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useSyncExternalStore } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-vi.hoisted(() => {
-  class ResizeObserverStub {
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  }
-  globalThis.ResizeObserver = ResizeObserverStub;
-});
 import {
   clearAllMeetings,
   readMeeting,
@@ -22,6 +13,15 @@ import {
   type MeetingId,
 } from "@/entities/meeting";
 import { AdviceBoard } from "./AdviceBoard";
+
+vi.hoisted(() => {
+  class ResizeObserverStub {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  globalThis.ResizeObserver = ResizeObserverStub;
+});
 
 const EMPTY_ADVICE_CARDS: readonly AdviceCard[] = [];
 
