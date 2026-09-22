@@ -144,7 +144,7 @@ test("session rail opens the advice board", async ({ page }) => {
   await page.getByRole("button", { name: "会議を開始" }).click();
   await advice.click();
   const adviceColumn = page.getByRole("region", { name: "アドバイス" });
-  const card = adviceColumn.getByRole("button");
+  const card = adviceColumn.getByRole("button", { name: /^確認したい点\s/ });
   await expect(
     adviceColumn.getByRole("heading", { level: 3, name: "確認したい点" }),
   ).toBeVisible();
