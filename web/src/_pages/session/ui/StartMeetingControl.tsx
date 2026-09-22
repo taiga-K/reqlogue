@@ -114,14 +114,16 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
   }
 
   async function stop() {
-    liveRef.current = false;
     setPhase({ status: "ending" });
-    try {
-      await releaseCapture();
-    } catch {
-      void 0;
-    }
-    const result = await endMeeting(meetingId);
+    const result = await endMeeting(meetingId, async () => {
+      try {
+        await releaseCapture();
+      } catch {
+        void 0;
+      } finally {
+        liveRef.current = false;
+      }
+    });
     if (unmountedRef.current) {
       return;
     }

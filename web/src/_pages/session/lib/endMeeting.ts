@@ -12,7 +12,11 @@ export type EndMeetingResult =
   | { readonly status: "failed" }
   | { readonly status: "nothing-to-end" };
 
-export async function endMeeting(meetingId: MeetingId): Promise<EndMeetingResult> {
+export async function endMeeting(
+  meetingId: MeetingId,
+  finishTranscription: () => Promise<void> = async () => {},
+): Promise<EndMeetingResult> {
+  await finishTranscription();
   const record = readMeeting(meetingId);
   if (record === null) {
     return { status: "nothing-to-end" };
