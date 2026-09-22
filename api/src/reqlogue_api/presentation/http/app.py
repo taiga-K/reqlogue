@@ -7,11 +7,16 @@ from reqlogue_api.application.transcribe import transcribe_audio
 from reqlogue_api.application.update_mindmap import update_mindmap
 from reqlogue_api.domain.advice import AdviceAnalysis
 from reqlogue_api.domain.mindmap import MindmapUpdate
+from reqlogue_api.domain.transcript import AudioTurn
 from reqlogue_api.main.config import Settings, load_settings
 from reqlogue_api.main.ioc import (
     build_advice_analyzer,
     build_mindmap_generator,
     build_transcriber,
+)
+from reqlogue_api.presentation.http.overview_header import (
+    OVERVIEW_HEADER,
+    parse_overview_header,
 )
 from reqlogue_api.presentation.http.schemas import (
     AdviceItemResponse,
@@ -47,7 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=list(resolved.cors_origins),
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Content-Type", OVERVIEW_HEADER],
     )
 
     @app.get("/health", response_model=HealthResponse)
@@ -57,8 +62,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/v1/transcription", response_model=TranscriptResponse)
     async def post_transcription(request: Request) -> TranscriptResponse:
         pcm = await request.body()
+        overview = parse_overview_header(request.headers.get(OVERVIEW_HEADER))
         try:
-            transcript = await transcribe_audio(transcriber, pcm)
+            transcript = await transcribe_audio(
+                transcriber,
+                AudioTurn(pcm=pcm, overview=overview),
+            )
         except Exception as error:
             raise TranscriberUnavailableError from error
         return TranscriptResponse(text=transcript.value)

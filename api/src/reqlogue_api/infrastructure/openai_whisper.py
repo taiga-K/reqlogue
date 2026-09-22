@@ -3,7 +3,7 @@ import base64
 import json
 from collections.abc import Awaitable, Callable
 
-from reqlogue_api.domain.transcript import TranscriptText
+from reqlogue_api.domain.transcript import AudioTurn, TranscriptText
 from reqlogue_api.infrastructure.openai_events import (
     is_error_event,
     parse_event_message,
@@ -11,7 +11,7 @@ from reqlogue_api.infrastructure.openai_events import (
 )
 
 OPENAI_REALTIME_URL = "wss://api.openai.com/v1/realtime?intent=transcription"
-WHISPER_MODEL = "gpt-realtime-whisper"
+LIVE_TRANSCRIBE_MODEL = "gpt-live-transcribe"
 TRANSCRIPT_WAIT_SECONDS = 15.0
 
 
@@ -22,7 +22,14 @@ class TranscriptWaitError(Exception):
 SessionUpdate = dict[str, object]
 
 
-def session_update_event() -> SessionUpdate:
+def session_update_event(overview: str) -> SessionUpdate:
+    transcription: dict[str, object] = {
+        "model": LIVE_TRANSCRIBE_MODEL,
+        "languages": ["ja"],
+        "delay": "low",
+    }
+    if overview != "":
+        transcription["prompt"] = overview
     return {
         "type": "session.update",
         "session": {
@@ -30,11 +37,7 @@ def session_update_event() -> SessionUpdate:
             "audio": {
                 "input": {
                     "format": {"type": "audio/pcm", "rate": 24000},
-                    "transcription": {
-                        "model": WHISPER_MODEL,
-                        "language": "ja",
-                        "delay": "low",
-                    },
+                    "transcription": transcription,
                     "turn_detection": None,
                 }
             },
@@ -51,16 +54,16 @@ class OpenAiRealtimeTranscriber:
         self._api_key = api_key
         self._connect = connect
 
-    async def transcribe(self, pcm16_mono_24k: bytes) -> TranscriptText:
+    async def transcribe(self, turn: AudioTurn) -> TranscriptText:
         headers = [f"Authorization: Bearer {self._api_key}"]
         websocket = await self._connect(OPENAI_REALTIME_URL, headers)
         try:
-            await _send_json(websocket, session_update_event())
+            await _send_json(websocket, session_update_event(turn.overview))
             await _send_json(
                 websocket,
                 {
                     "type": "input_audio_buffer.append",
-                    "audio": base64.b64encode(pcm16_mono_24k).decode("ascii"),
+                    "audio": base64.b64encode(turn.pcm).decode("ascii"),
                 },
             )
             await _send_json(websocket, {"type": "input_audio_buffer.commit"})

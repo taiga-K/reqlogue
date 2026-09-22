@@ -93,7 +93,7 @@ describe("createOurApiTranscriber", () => {
     );
 
     const finals: Array<{ text: string; at: Date }> = [];
-    const handle = await createOurApiTranscriber().start(
+    const handle = await createOurApiTranscriber("").start(
       {} as MediaStream,
       (text, at) => {
         finals.push({ text, at });
@@ -146,7 +146,7 @@ describe("createOurApiTranscriber", () => {
     );
 
     const finals: string[] = [];
-    const handle = await createOurApiTranscriber().start(
+    const handle = await createOurApiTranscriber("").start(
       {} as MediaStream,
       (text) => {
         finals.push(text);
@@ -172,7 +172,7 @@ describe("createOurApiTranscriber", () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse({}, 503))));
 
     const failures: number[] = [];
-    await createOurApiTranscriber().start(
+    await createOurApiTranscriber("").start(
       {} as MediaStream,
       () => {
         throw new Error("should not emit");
@@ -185,5 +185,51 @@ describe("createOurApiTranscriber", () => {
     await vi.waitFor(() => {
       expect(failures).toEqual([1]);
     });
+  });
+
+  it("sends a percent-encoded overview header only when overview is present", async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse({ text: "はい" })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const emitWithOverview = captureChunks();
+    const withOverview = await createOurApiTranscriber("新サービス").start(
+      {} as MediaStream,
+      () => {},
+      () => {
+        throw new Error("should not fail");
+      },
+    );
+    emitWithOverview(new ArrayBuffer(2));
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "X-Reqlogue-Overview": "%E6%96%B0%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9",
+      },
+    });
+    await withOverview.stop();
+
+    fetchMock.mockClear();
+    const emitWithout = captureChunks();
+    const withoutOverview = await createOurApiTranscriber("").start(
+      {} as MediaStream,
+      () => {},
+      () => {
+        throw new Error("should not fail");
+      },
+    );
+    emitWithout(new ArrayBuffer(2));
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: { "Content-Type": "application/octet-stream" },
+    });
+    expect(
+      (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.headers,
+    ).not.toHaveProperty("X-Reqlogue-Overview");
+    await withoutOverview.stop();
   });
 });

@@ -65,12 +65,12 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
     setPhase({ status: "requesting" });
     liveRef.current = true;
     const startGate = { failed: false };
-    ensureMeeting(meetingId);
+    const record = ensureMeeting(meetingId);
     const result = await startMeetingCapture({
       captureDisplay,
       captureMic,
       mix: mixTabAndMic,
-      transcribe: createTranscriber(),
+      transcribe: createTranscriber(record.overview),
       appendTranscript: (at, text) => {
         if (!liveRef.current) {
           return;
