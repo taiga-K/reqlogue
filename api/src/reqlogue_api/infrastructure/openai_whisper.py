@@ -84,6 +84,10 @@ class OpenAiLiveSession:
     def __init__(self, websocket: object) -> None:
         self._websocket = websocket
         self._uncommitted = 0
+        self._latest_item_id: str | None = None
+        self._manual_item_id: str | None = None
+        self._open_items: set[str] = set()
+        self._awaiting_manual_commit = False
         self._delta_items: set[str] = set()
         self._closed = False
         self._tail = asyncio.Event()
@@ -108,10 +112,12 @@ class OpenAiLiveSession:
         self._closed = True
         try:
             if self._uncommitted > 0:
+                self._awaiting_manual_commit = True
                 await _send_json(
                     self._websocket,
                     {"type": "input_audio_buffer.commit"},
                 )
+            if self._awaiting_manual_commit or self._latest_item_open():
                 try:
                     await asyncio.wait_for(self._tail.wait(), TRANSCRIPT_WAIT_SECONDS)
                 except TimeoutError:
@@ -153,7 +159,7 @@ class OpenAiLiveSession:
                         )
                     self._tail.set()
                     return
-                if self._closed and _is_completed(payload):
+                if self._tail_ready():
                     self._tail.set()
                     return
         except asyncio.CancelledError:
@@ -163,9 +169,36 @@ class OpenAiLiveSession:
                 await self._queue.put(error)
             self._tail.set()
 
+    def _latest_item_open(self) -> bool:
+        item_id = self._latest_item_id
+        return item_id is not None and item_id in self._open_items
+
+    def _tail_ready(self) -> bool:
+        if not self._closed:
+            return False
+        if self._awaiting_manual_commit:
+            return (
+                self._manual_item_id is not None
+                and self._manual_item_id not in self._open_items
+            )
+        return (
+            self._latest_item_id is not None
+            and self._latest_item_id not in self._open_items
+        )
+
     def _piece(self, payload: object) -> str | None:
-        if _is_committed(payload) or _is_completed(payload):
+        if _is_committed(payload):
+            item_id = _item_id(payload)
+            if item_id is not None:
+                self._latest_item_id = item_id
+                self._open_items.add(item_id)
+                if self._awaiting_manual_commit and self._manual_item_id is None:
+                    self._manual_item_id = item_id
             self._uncommitted = 0
+        elif _is_completed(payload):
+            item_id = _item_id(payload)
+            if item_id is not None:
+                self._open_items.discard(item_id)
         delta = delta_from_event(payload)
         if delta is not None:
             item_id = _item_id(payload)

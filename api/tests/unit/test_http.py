@@ -194,3 +194,43 @@ def test_transcription_stream_passes_the_overview(
         socket.send_bytes(b"\x00\x01")
         assert socket.receive_json() == {"text": "stub transcript"}
     assert recorder.overviews == ["新サービス"]
+
+
+def test_transcription_stream_closes_when_deltas_fail(
+    settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from starlette.websockets import WebSocketDisconnect
+
+    class BoomSession:
+        async def append(self, pcm: bytes) -> None:
+            del pcm
+
+        async def close(self) -> None:
+            return None
+
+        async def _iterate(self):  # type: ignore[no-untyped-def]
+            raise RuntimeError("transcription error")
+            yield TranscriptText("")
+
+        def __aiter__(self):  # type: ignore[no-untyped-def]
+            return self._iterate()
+
+    class BoomTranscriber:
+        async def transcribe(self, turn: AudioTurn) -> TranscriptText:
+            del turn
+            return TranscriptText("ok")
+
+        async def open_session(self, overview: str) -> BoomSession:
+            del overview
+            return BoomSession()
+
+    monkeypatch.setattr(
+        "reqlogue_api.presentation.http.app.build_transcriber",
+        lambda _settings: BoomTranscriber(),
+    )
+    client = TestClient(create_app(settings))
+    with pytest.raises(WebSocketDisconnect) as caught:
+        with client.websocket_connect("/v1/transcription/stream") as socket:
+            socket.receive_text()
+    assert caught.value.code == 1011

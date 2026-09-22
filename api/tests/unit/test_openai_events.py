@@ -13,7 +13,7 @@ def test_reads_incremental_deltas() -> None:
                 "delta": "  こん  ",
             }
         )
-        == "こん"
+        == "  こん  "
     )
     assert delta_from_event({"type": "error", "delta": "こん"}) is None
     assert (

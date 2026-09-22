@@ -234,6 +234,59 @@ async def test_live_session_yields_deltas_and_skips_the_completed_turn(
 
 
 @pytest.mark.asyncio
+async def test_close_waits_for_the_commit_started_at_stop() -> None:
+    socket = QueueSocket()
+    session = await _open(socket)
+    pieces = session.__aiter__()
+    await session.append(b"\x01")
+    await socket.push({"type": "input_audio_buffer.committed", "item_id": "old"})
+    await socket.push(
+        {
+            "type": "conversation.item.input_audio_transcription.completed",
+            "item_id": "old",
+            "transcript": "古い",
+        }
+    )
+    first = await asyncio.wait_for(pieces.__anext__(), 1)
+    assert first.value == "古い"
+    await session.append(b"\x02")
+
+    close_task = asyncio.create_task(session.close())
+    for _ in range(20):
+        if "input_audio_buffer.commit" in _event_types(socket):
+            break
+        await asyncio.sleep(0.01)
+    assert "input_audio_buffer.commit" in _event_types(socket)
+    await socket.push(
+        {
+            "type": "conversation.item.input_audio_transcription.completed",
+            "item_id": "old",
+            "transcript": "",
+        }
+    )
+    await asyncio.sleep(0.05)
+    assert not close_task.done()
+    await socket.push({"type": "input_audio_buffer.committed", "item_id": "new"})
+    await socket.push(
+        {
+            "type": "conversation.item.input_audio_transcription.delta",
+            "item_id": "new",
+            "delta": "最後",
+        }
+    )
+    await socket.push(
+        {
+            "type": "conversation.item.input_audio_transcription.completed",
+            "item_id": "new",
+            "transcript": "最後",
+        }
+    )
+    last = await asyncio.wait_for(pieces.__anext__(), 1)
+    assert last.value == "最後"
+    await asyncio.wait_for(close_task, 1)
+
+
+@pytest.mark.asyncio
 async def test_live_session_raises_when_transcription_fails() -> None:
     socket = QueueSocket()
     session = await _open(socket)

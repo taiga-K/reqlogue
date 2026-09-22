@@ -25,6 +25,7 @@ class FakeWebSocket {
   readyState = FakeWebSocket.OPEN;
   readonly url: string;
   readonly sent: ArrayBuffer[] = [];
+  readonly sentText: string[] = [];
   private readonly listeners = new Map<string, Array<(event: Event) => void>>();
 
   constructor(url: string) {
@@ -38,7 +39,12 @@ class FakeWebSocket {
     this.listeners.set(type, current);
   }
 
-  send(data: ArrayBuffer) {
+  send(data: ArrayBuffer | string) {
+    if (typeof data === "string") {
+      this.sentText.push(data);
+      this.close();
+      return;
+    }
     this.sent.push(data);
   }
 
@@ -88,9 +94,9 @@ afterEach(() => {
 });
 
 describe("parseTranscriptResponse", () => {
-  it("reads trimmed text and rejects empty or speaker payloads", () => {
+  it("keeps boundary spaces and rejects empty or speaker payloads", () => {
     expect(parseTranscriptResponse({ text: "  こんにちは  " })).toBe(
-      "こんにちは",
+      "  こんにちは  ",
     );
     expect(parseTranscriptResponse({ text: "   " })).toBeNull();
     expect(parseTranscriptResponse({ speaker: "進行", text: "はい" })).toBe(
@@ -213,5 +219,30 @@ describe("createOurApiTranscriber", () => {
     const url = new URL(FakeWebSocket.sockets[0]?.url ?? "");
     expect(url.searchParams.get("overview")).toBe("新サービス");
     await handle.stop();
+  });
+
+  it("sends audio flushed at stop before the stop message", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    startPcmChunks.mockImplementation(
+      (_stream: MediaStream, chunk: (pcm: ArrayBuffer) => void) => {
+        return Promise.resolve({
+          stop: () => {
+            chunk(new ArrayBuffer(4));
+            return Promise.resolve();
+          },
+        });
+      },
+    );
+    const handle = await createOurApiTranscriber("").start(
+      {} as MediaStream,
+      () => {},
+      () => {
+        throw new Error("should not fail");
+      },
+    );
+    await handle.stop();
+    const socket = FakeWebSocket.sockets[0];
+    expect(socket?.sent).toHaveLength(1);
+    expect(socket?.sentText).toEqual([JSON.stringify({ type: "stop" })]);
   });
 });

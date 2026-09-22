@@ -32,11 +32,10 @@ export function parseTranscriptResponse(value: unknown): string | null {
   if (!("text" in value) || typeof value.text !== "string") {
     return null;
   }
-  const text = value.text.trim();
-  if (text.length === 0) {
+  if (value.text.trim().length === 0) {
     return null;
   }
-  return text;
+  return value.text;
 }
 
 export function transcriptionStreamUrl(overview: string): string {
@@ -57,16 +56,20 @@ export function createOurApiTranscriber(overview: string): TranscriptionPort {
       const socket = new WebSocket(transcriptionStreamUrl(overview));
       socket.binaryType = "arraybuffer";
       const pending: ArrayBuffer[] = [];
-      let closing = false;
+      let finished = false;
       let failed = false;
       const closed = new Promise<void>((resolve) => {
-        socket.addEventListener("close", () => {
+        socket.addEventListener("close", (event) => {
+          finished = true;
           resolve();
+          if (event.code !== 1000) {
+            fail();
+          }
         });
       });
 
       function fail() {
-        if (closing || failed) {
+        if (failed) {
           return;
         }
         failed = true;
@@ -82,13 +85,8 @@ export function createOurApiTranscriber(overview: string): TranscriptionPort {
       socket.addEventListener("error", () => {
         fail();
       });
-      socket.addEventListener("close", (event) => {
-        if (!closing && event.code !== 1000) {
-          fail();
-        }
-      });
       socket.addEventListener("message", (event) => {
-        if (closing || typeof event.data !== "string") {
+        if (finished || typeof event.data !== "string") {
           return;
         }
         let payload: unknown;
@@ -105,7 +103,7 @@ export function createOurApiTranscriber(overview: string): TranscriptionPort {
       });
 
       const pump = await startPcmChunks(stream, (pcm) => {
-        if (closing) {
+        if (finished) {
           return;
         }
         if (socket.readyState === WebSocket.OPEN) {
@@ -117,13 +115,9 @@ export function createOurApiTranscriber(overview: string): TranscriptionPort {
 
       return {
         stop: async () => {
-          closing = true;
           await pump.stop();
-          if (
-            socket.readyState === WebSocket.CONNECTING ||
-            socket.readyState === WebSocket.OPEN
-          ) {
-            socket.close();
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "stop" }));
           }
           await closed;
         },

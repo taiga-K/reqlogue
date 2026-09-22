@@ -20,10 +20,9 @@ def delta_from_event(payload: object) -> str | None:
     delta = payload.get("delta")
     if not isinstance(delta, str):
         return None
-    text = delta.strip()
-    if text == "":
+    if delta.strip() == "":
         return None
-    return text
+    return delta
 
 
 def transcript_from_event(payload: object) -> str | None:

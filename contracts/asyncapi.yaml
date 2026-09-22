@@ -10,18 +10,31 @@ channels:
   /v1/transcription/stream:
     description: >
       One live transcription session. The client appends PCM16 mono 24 kHz
-      audio. The server forwards gpt-live-transcribe deltas as they arrive.
-    parameters:
-      overview:
-        schema:
-          type: string
-        description: Meeting overview used as the transcription prompt
+      audio, then sends stop. The server forwards gpt-live-transcribe deltas
+      as they arrive and closes the socket after the final turn.
+    bindings:
+      ws:
+        query:
+          type: object
+          properties:
+            overview:
+              type: string
+              description: Meeting overview used as the transcription prompt
     publish:
       message:
-        name: audio
-        payload:
-          type: string
-          format: binary
+        oneOf:
+          - name: audio
+            payload:
+              type: string
+              format: binary
+          - name: stop
+            payload:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum: [stop]
     subscribe:
       message:
         name: transcriptDelta
@@ -31,4 +44,4 @@ channels:
           properties:
             text:
               type: string
-              description: Incremental transcript text
+              description: Incremental transcript text, including boundary spaces
