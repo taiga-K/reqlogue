@@ -58,6 +58,7 @@ describe("parseMeetingRecord", () => {
     ).toEqual({
       id: "meet-1",
       name: "新サービス",
+      overview: "",
       transcript: "line",
       mindmapMarkdown: "# 会議",
       sentTranscriptOffset: 4,
@@ -76,6 +77,37 @@ describe("parseMeetingRecord", () => {
     ).toEqual({
       id: "meet-1",
       name: "新サービス",
+      overview: "",
+      transcript: "line",
+      mindmapMarkdown: "",
+      sentTranscriptOffset: 0,
+      adviceCards: [],
+      adviceSentTranscriptOffset: 0,
+    });
+  });
+
+  it("defaults a missing overview on older records", () => {
+    expect(
+      parseMeetingRecord(id, {
+        id: "meet-1",
+        name: "新サービス",
+        transcript: "line",
+      })?.overview,
+    ).toBe("");
+  });
+
+  it("round-trips a provided overview", () => {
+    expect(
+      parseMeetingRecord(id, {
+        id: "meet-1",
+        name: "新サービス",
+        overview: "話したいこと",
+        transcript: "line",
+      }),
+    ).toEqual({
+      id: "meet-1",
+      name: "新サービス",
+      overview: "話したいこと",
       transcript: "line",
       mindmapMarkdown: "",
       sentTranscriptOffset: 0,
@@ -88,6 +120,7 @@ describe("parseMeetingRecord", () => {
     expect(parseMeetingRecord(id, createMeetingRecord(id, "x"))).toEqual({
       id: "meet-1",
       name: "x",
+      overview: "",
       transcript: "",
       mindmapMarkdown: "",
       sentTranscriptOffset: 0,

@@ -17,12 +17,17 @@ export function meetingStorageKey(id: MeetingId): string {
 }
 
 export function startNewMeeting(
-  name: string,
+  brief: { readonly name: string; readonly overview: string },
   createUuid: () => string = () => crypto.randomUUID(),
 ): MeetingRecord {
+  const name = brief.name.trim();
+  const overview = brief.overview.trim();
+  if (name.length === 0) {
+    throw new Error("meeting name is required");
+  }
   const id = mintMeetingId(createUuid);
   clearAllMeetings();
-  const record = createMeetingRecord(id, name);
+  const record = createMeetingRecord(id, name, overview);
   writeMeeting(record);
   return record;
 }

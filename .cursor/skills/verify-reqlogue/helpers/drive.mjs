@@ -109,10 +109,20 @@ async function waitForSessionShell(page) {
   await page.getByRole("button", { name: "会議を開始" }).waitFor({ state: "visible" });
 }
 
-async function startNamedSession(page, name) {
+async function openPrepare(page) {
   await page.goto(`${webUrl}/`);
-  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill(name);
-  await page.getByRole("button", { name: "はじめる" }).click();
+  await page.getByRole("link", { name: "はじめる" }).click();
+  await page.waitForURL(/\/prepare\/?$/);
+}
+
+async function startNamedSession(page, name) {
+  await openPrepare(page);
+  await page.getByRole("textbox", { name: "会議名" }).fill(name);
+  const next = page.getByRole("button", { name: "次へ" });
+  if (!(await next.isEnabled())) {
+    fail("次へ should enable once the meeting name is non-blank");
+  }
+  await next.click();
   await page.waitForURL(UUID_SESSION);
   await waitForBannerHeading(page, name);
   const url = page.url();
@@ -136,16 +146,43 @@ async function driveHomeStart(dir) {
     if (!(await heading.isVisible())) {
       fail("home headline missing");
     }
-    const start = page.getByRole("button", { name: "はじめる" });
+    if ((await page.getByRole("textbox").count()) !== 0) {
+      fail("home must not show a meeting name field");
+    }
+    const start = page.getByRole("link", { name: "はじめる" });
     if (!(await start.isEnabled())) {
-      fail("はじめる should stay enabled on a blank name");
+      fail("はじめる should stay enabled on home");
     }
 
-    await page
-      .getByRole("textbox", { name: "今日の会議のなまえ" })
-      .fill("新サービスの打ち合わせ");
-    const filled = await capture(page, dir, "01-home-filled");
     await start.click();
+    await page.waitForURL(/\/prepare\/?$/);
+    const prepare = await capture(page, dir, "01-prepare");
+    if (
+      !(await page
+        .getByRole("heading", { name: "会議の準備をしましょう" })
+        .isVisible())
+    ) {
+      fail("prepare headline missing");
+    }
+    if (!(await page.getByRole("textbox", { name: "会議名" }).isVisible())) {
+      fail("prepare name field missing");
+    }
+    if (!(await page.getByRole("textbox", { name: "会議の概要" }).isVisible())) {
+      fail("prepare overview field missing");
+    }
+    const next = page.getByRole("button", { name: "次へ" });
+    if (await next.isEnabled()) {
+      fail("次へ must stay disabled until the name is non-blank");
+    }
+
+    await page.getByRole("textbox", { name: "会議名" }).fill(
+      "新サービスの打ち合わせ",
+    );
+    if (!(await next.isEnabled())) {
+      fail("次へ should enable once the meeting name is non-blank");
+    }
+    const filled = await capture(page, dir, "02-prepare-filled");
+    await next.click();
     await page.waitForURL(UUID_SESSION);
     if (page.url().includes("meetingName")) {
       fail("session URL leaked the meetingName query");
@@ -169,35 +206,17 @@ async function driveHomeStart(dir) {
       .getByRole("banner")
       .getByRole("heading", { name: "新サービスの打ち合わせ" })
       .waitFor();
-    const afterNamed = await capture(page, dir, "02-session-named");
+    const afterNamed = await capture(page, dir, "03-session-named");
 
-    await page.goto(`${webUrl}/`);
-    await page.getByRole("button", { name: "はじめる" }).click();
-    await page.waitForURL(UUID_SESSION);
-    await waitForSessionShell(page);
-    const blankUrl = page.url();
-    if ((await page.getByRole("heading").count()) !== 0) {
-      fail("blank-name session must omit the heading");
-    }
-    if (
-      !(await page
-        .getByRole("banner")
-        .getByRole("img", { name: "reqlogue" })
-        .isVisible())
-    ) {
-      fail("blank-name session lost the wordmark");
-    }
-    const afterBlank = await capture(page, dir, "03-session-blank");
-
-    await page.goto(`${webUrl}/`);
-    await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill("旧会議");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await openPrepare(page);
+    await page.getByRole("textbox", { name: "会議名" }).fill("旧会議");
+    await page.getByRole("button", { name: "次へ" }).click();
     await page.waitForURL(UUID_SESSION);
     const firstKeys = await meetingState(page);
     const firstUrl = page.url();
-    await page.goto(`${webUrl}/`);
-    await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill("新会議");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await openPrepare(page);
+    await page.getByRole("textbox", { name: "会議名" }).fill("新会議");
+    await page.getByRole("button", { name: "次へ" }).click();
     await page.waitForURL(UUID_SESSION);
     await waitForBannerHeading(page, "新会議");
     const secondKeys = await meetingState(page);
@@ -216,15 +235,14 @@ async function driveHomeStart(dir) {
 
     return {
       feature: "home-start",
-      entry: "home form はじめる",
+      entry: "home link はじめる then prepare 次へ",
       before,
+      prepare,
       filled,
       afterNamed,
-      afterBlank,
       afterReplace,
       namedUrl,
       namedId,
-      blankUrl,
       firstUrl,
       storedNamed,
       firstKeys,
@@ -251,28 +269,10 @@ async function driveSessionBanner(dir) {
       fail("retired マインドマップ copy is visible");
     }
     const named = await capture(page, dir, "00-named");
-
-    await page.goto(`${webUrl}/`);
-    await page.getByRole("button", { name: "はじめる" }).click();
-    await page.waitForURL(UUID_SESSION);
-    await waitForSessionShell(page);
-    if ((await page.getByRole("heading").count()) !== 0) {
-      fail("blank-name session must omit the heading");
-    }
-    if (
-      !(await page
-        .getByRole("banner")
-        .getByRole("img", { name: "reqlogue" })
-        .isVisible())
-    ) {
-      fail("blank-name session lost the wordmark");
-    }
-    const blank = await capture(page, dir, "01-blank");
     return {
       feature: "session-banner",
-      entry: "home はじめる then session banner",
+      entry: "home link はじめる then prepare 次へ then session banner",
       named,
-      blank,
       namedUrl: started.url,
     };
   });

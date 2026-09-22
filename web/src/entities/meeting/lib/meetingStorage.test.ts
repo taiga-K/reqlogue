@@ -17,10 +17,11 @@ afterEach(() => {
 
 describe("meetingStorage", () => {
   it("starts a meeting keyed by id, without speaker fields", () => {
-    const record = startNewMeeting("新サービス", () => "meet-a");
+    const record = startNewMeeting({ name: "新サービス", overview: "" }, () => "meet-a");
     expect(record).toEqual({
       id: "meet-a",
       name: "新サービス",
+      overview: "",
       transcript: "",
       mindmapMarkdown: "",
       sentTranscriptOffset: 0,
@@ -38,21 +39,21 @@ describe("meetingStorage", () => {
     ).not.toHaveProperty("speaker");
   });
 
-  it("allows an empty display name", () => {
-    const record = startNewMeeting("", () => "meet-blank");
-    expect(record.name).toBe("");
-    expect(readMeeting(record.id)).toEqual(record);
+  it("rejects an empty display name", () => {
+    expect(() =>
+      startNewMeeting({ name: "", overview: "" }, () => "meet-blank"),
+    ).toThrow("meeting name is required");
   });
 
   it("clears previous meetings when a new one starts", () => {
-    startNewMeeting("旧", () => "old");
-    const next = startNewMeeting("新", () => "new");
+    startNewMeeting({ name: "旧", overview: "" }, () => "old");
+    const next = startNewMeeting({ name: "新", overview: "" }, () => "new");
     expect(readMeeting(mintMeetingId(() => "old"))).toBeNull();
     expect(readMeeting(next.id)?.name).toBe("新");
   });
 
   it("appends time-ordered transcript text and clears on end", () => {
-    const record = startNewMeeting("会議", () => "meet-t");
+    const record = startNewMeeting({ name: "会議", overview: "" }, () => "meet-t");
     const at = new Date("2026-09-21T16:01:00.000Z");
     appendMeetingTranscript(record.id, at, "こんにちは");
     expect(readMeeting(record.id)?.transcript).toBe(
@@ -63,11 +64,12 @@ describe("meetingStorage", () => {
   });
 
   it("stores mindmap markdown and sent offset, then clears both with the record", () => {
-    const record = startNewMeeting("会議", () => "meet-map");
+    const record = startNewMeeting({ name: "会議", overview: "" }, () => "meet-map");
     saveMindmapProgress(record.id, "# 会議\n\n- 要件", 12);
     expect(readMeeting(record.id)).toEqual({
       id: "meet-map",
       name: "会議",
+      overview: "",
       transcript: "",
       mindmapMarkdown: "# 会議\n\n- 要件",
       sentTranscriptOffset: 12,
@@ -79,7 +81,7 @@ describe("meetingStorage", () => {
   });
 
   it("returns the same card list until the stored record changes", () => {
-    const record = startNewMeeting("会議", () => "meet-stable");
+    const record = startNewMeeting({ name: "会議", overview: "" }, () => "meet-stable");
     const first = readMeeting(record.id);
     const second = readMeeting(record.id);
     expect(second?.adviceCards).toBe(first?.adviceCards);
@@ -101,7 +103,7 @@ describe("meetingStorage", () => {
   });
 
   it("keeps advice cards on the record and clears them with the meeting", () => {
-    const record = startNewMeeting("会議", () => "meet-advice");
+    const record = startNewMeeting({ name: "会議", overview: "" }, () => "meet-advice");
     const card = {
       id: "card-1",
       column: "doing" as const,
@@ -124,7 +126,7 @@ describe("meetingStorage", () => {
   });
 
   it("drops the parsed cache when a meeting is cleared", () => {
-    const record = startNewMeeting("会議", () => "meet-cache");
+    const record = startNewMeeting({ name: "会議", overview: "" }, () => "meet-cache");
     const first = readMeeting(record.id);
     const key = `${MEETING_STORAGE_PREFIX}meet-cache`;
     const raw = localStorage.getItem(key);
@@ -134,7 +136,7 @@ describe("meetingStorage", () => {
     }
     expect(readMeeting(record.id)).not.toBe(first);
 
-    const again = startNewMeeting("会議", () => "meet-cache-all");
+    const again = startNewMeeting({ name: "会議", overview: "" }, () => "meet-cache-all");
     const cached = readMeeting(again.id);
     const allKey = `${MEETING_STORAGE_PREFIX}meet-cache-all`;
     const allRaw = localStorage.getItem(allKey);

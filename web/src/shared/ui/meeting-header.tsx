@@ -1,12 +1,12 @@
 import Image from "next/image";
 import wordmark from "@/shared/ui/reqlogue-illustrated-wordmark.webp";
-import styles from "./SessionHeader.module.css";
+import styles from "./meeting-header.module.css";
 
-type SessionHeaderProps = {
+type MeetingHeaderProps = {
   readonly name: string;
 };
 
-export function SessionHeader({ name }: SessionHeaderProps) {
+export function MeetingHeader({ name }: MeetingHeaderProps) {
   const heading = name.trim().length === 0 ? null : name;
 
   return (
