@@ -245,4 +245,24 @@ describe("createOurApiTranscriber", () => {
     expect(socket?.sent).toHaveLength(1);
     expect(socket?.sentText).toEqual([JSON.stringify({ type: "stop" })]);
   });
+
+  it("closes a socket that is still connecting", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    captureChunks();
+    const handle = await createOurApiTranscriber("").start(
+      {} as MediaStream,
+      () => {},
+      () => {
+        throw new Error("should not fail");
+      },
+    );
+    const socket = FakeWebSocket.sockets[0];
+    if (socket === undefined) {
+      throw new Error("missing socket");
+    }
+    socket.readyState = FakeWebSocket.CONNECTING;
+    await handle.stop();
+    expect(socket.readyState).toBe(FakeWebSocket.CLOSED);
+    expect(socket.sentText).toEqual([]);
+  });
 });

@@ -118,6 +118,11 @@ export function createOurApiTranscriber(overview: string): TranscriptionPort {
           await pump.stop();
           if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ type: "stop" }));
+            await closed;
+            return;
+          }
+          if (socket.readyState === WebSocket.CONNECTING) {
+            socket.close();
           }
           await closed;
         },
