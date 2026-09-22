@@ -8,13 +8,15 @@ from reqlogue_api.domain.mindmap import MindmapMarkdown, MindmapUpdate
 ORCAROUTER_CHAT_URL = "https://api.orcarouter.ai/v1/chat/completions"
 MEETING_SUPPORT_LITE = "orcarouter/meeting-support-lite"
 SYSTEM_PROMPT = """あなたは要件定義ヒアリングのマインドマップ編集者です。
-会話から要件の対象とその詳細を抽出し、markmap で視覚的に理解しやすいマインドマップの Markdown を作成・更新します。
+会話から要件の対象とその詳細を抽出し、markmap で
+視覚的に理解しやすいマインドマップの Markdown を作成・更新します。
 聞いた言葉をベースにし、話していない推測の手順は足しません。
 
 【出力】
 毎回 markmap 用の完全な Markdown 文書だけを返してください。
 コードフェンスは付けないでください。
-先頭の見出しは1つだけです（# 会議名）。話題はリストの枝で表現し、見出しは増やさないでください。
+先頭の見出しは1つだけです（# 会議名）。
+話題はリストの枝で表現し、見出しは増やさないでください。
 ノードの差分パッチではなく、常に全体の Markdown を出力してください。
 リストの入れ子は半角スペース2つです。
 
