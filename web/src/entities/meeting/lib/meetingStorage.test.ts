@@ -6,6 +6,7 @@ import {
   clearMeeting,
   MEETING_STORAGE_PREFIX,
   readMeeting,
+  removeAdviceCard,
   saveAdviceProgress,
   saveMindmapProgress,
   startNewMeeting,
@@ -123,6 +124,44 @@ describe("meetingStorage", () => {
     expect(readMeeting(record.id)?.adviceSentTranscriptOffset).toBe(8);
     clearMeeting(record.id);
     expect(readMeeting(record.id)).toBeNull();
+  });
+
+  it("removes one advice card and leaves the others on the record", () => {
+    const record = startNewMeeting(
+      { name: "会議", overview: "概要" },
+      () => "meet-remove",
+    );
+    const quantity = {
+      id: "card-1",
+      column: "advice" as const,
+      title: "数量",
+      reason: "上限がない",
+      suggestedQuestion: "上限はありますか？",
+      quote: "数量の上限",
+    };
+    const schedule = {
+      id: "card-2",
+      column: "doing" as const,
+      title: "納期",
+      reason: "日付がない",
+      suggestedQuestion: "いつまでですか？",
+      quote: "納期の話",
+    };
+    const owner = {
+      id: "card-3",
+      column: "done" as const,
+      title: "担当",
+      reason: "人が決まっていない",
+      suggestedQuestion: "誰が担当ですか？",
+      quote: "担当の話",
+    };
+    saveAdviceProgress(record.id, [quantity, schedule, owner], 8);
+    const next = removeAdviceCard(record.id, schedule.id);
+    expect(next?.adviceCards).toEqual([quantity, owner]);
+    expect(readMeeting(record.id)?.adviceCards).toEqual([quantity, owner]);
+    expect(readMeeting(record.id)?.adviceSentTranscriptOffset).toBe(8);
+    expect(readMeeting(record.id)?.overview).toBe("概要");
+    expect(readMeeting(record.id)?.name).toBe("会議");
   });
 
   it("drops the parsed cache when a meeting is cleared", () => {

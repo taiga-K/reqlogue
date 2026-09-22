@@ -19,6 +19,7 @@ export {
 } from "./model/meeting";
 export {
   appendMeetingTranscript,
+  removeAdviceCard,
   saveAdviceProgress,
   saveMindmapProgress,
   clearAllMeetings,

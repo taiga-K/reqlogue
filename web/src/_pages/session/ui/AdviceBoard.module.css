@@ -30,19 +30,31 @@
 }
 
 .card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  position: relative;
   padding: 0.75rem;
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   background: var(--card);
   color: #242322;
+}
+
+.drag {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-right: 5.5rem;
   cursor: grab;
 }
 
 .card[data-dragging="true"] {
   opacity: 0.55;
+}
+
+.remove {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  cursor: pointer;
 }
 
 .title {

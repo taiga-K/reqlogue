@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   moveAdviceCard,
   readMeeting,
+  removeAdviceCard,
   saveAdviceProgress,
   saveMindmapProgress,
   subscribeMeetingTranscript,
@@ -110,6 +111,10 @@ export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
     );
   }
 
+  function removeCard(id: string) {
+    removeAdviceCard(meetingId, id);
+  }
+
   return (
     <>
       <MeetingHeader name={name} />
@@ -121,7 +126,11 @@ export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
               <SessionMindmap markdown={shownMarkdown} />
             </div>
             <div className={paneClass(pane, "advice")}>
-              <AdviceBoard cards={adviceCards} onMove={moveCard} />
+              <AdviceBoard
+                cards={adviceCards}
+                onMove={moveCard}
+                onRemove={removeCard}
+              />
             </div>
           </div>
         </main>
