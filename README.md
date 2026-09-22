@@ -103,7 +103,7 @@ reqlogue/
 cd api
 uv sync --extra dev
 # スタブモード（外部 API キー不要）で起動する場合:
-REQLOGUE_TRANSCRIBER=stub uv run uvicorn reqlogue_api.main.app:app --reload --port 8000
+REQLOGUE_TRANSCRIBER=stub REQLOGUE_MINDMAP=stub uv run uvicorn reqlogue_api.main.app:app --reload --port 8000
 
 # 外部 API（OpenAI / OrcaRouter）を利用して起動する場合:
 # export OPENAI_API_KEY="your-openai-key"
@@ -127,9 +127,9 @@ pnpm dev      # http://localhost:3000
 
 ### A. 認証なし・外部 API 不要のスタブプレビュー（最短パス）
 
-マイクや Google Meet、外部 API キーがない環境でも、スタブ動作で準備〜会議進行〜マインドマップ・助言〜要件定義書生成の全フローを確認できます。
+Google Meet や外部 API キーがない環境でも、音声を含むタブの画面共有とマイク共有を許可すれば、スタブ動作で準備〜会議進行〜マインドマップ・助言〜要件定義書生成の全フローを確認できます。
 
-1. バックエンドをスタブモード（`REQLOGUE_TRANSCRIBER=stub`）で起動し、フロントエンドを起動して `http://localhost:3000` を開く。
+1. バックエンドをスタブモード（`REQLOGUE_TRANSCRIBER=stub REQLOGUE_MINDMAP=stub`）で起動し、フロントエンドを起動して `http://localhost:3000` を開く。
 2. ホーム画面（`/`）で **はじめる** をクリックする（初回ログインは不要）。
 3. 会議準備画面（`/prepare`）で会議名（例：「新サービスの打ち合わせ」）を入力し（概要は任意）、**次へ** をクリックする。
 4. セッション画面（`/session/[meetingId]`）が表示される。左メニューから「マインドマップ」と「アドバイス」の切り替えができることを確認する。
