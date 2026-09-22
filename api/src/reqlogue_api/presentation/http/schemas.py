@@ -48,3 +48,25 @@ class AdviceItemResponse(BaseModel):
 class AdviceResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     items: list[AdviceItemResponse]
+
+
+class DetectionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    title: str
+    reason: str
+    suggested_question: str = Field(alias="suggestedQuestion")
+    quote: str
+    column: Literal["advice", "doing", "done"]
+
+
+class RequirementsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    meeting_id: str = Field(alias="meetingId", min_length=1)
+    meeting_name: str = Field(alias="meetingName")
+    utterances: list[str]
+    detections: list[DetectionRequest]
+
+
+class RequirementsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    markdown: str

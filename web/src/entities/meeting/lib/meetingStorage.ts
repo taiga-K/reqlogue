@@ -126,6 +126,25 @@ export function saveAdviceProgress(
   return next;
 }
 
+export function removeAdviceCard(
+  id: MeetingId,
+  cardId: string,
+): MeetingRecord | null {
+  const existing = readMeeting(id);
+  if (existing === null) {
+    return null;
+  }
+  if (!existing.adviceCards.some((card) => card.id === cardId)) {
+    return existing;
+  }
+  const next: MeetingRecord = {
+    ...existing,
+    adviceCards: existing.adviceCards.filter((card) => card.id !== cardId),
+  };
+  persist(next, "advice");
+  return next;
+}
+
 export function clearMeeting(id: MeetingId): void {
   parsedMeetings.delete(meetingStorageKey(id));
   if (!hasLocalStorage()) {

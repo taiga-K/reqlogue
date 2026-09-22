@@ -1,0 +1,51 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.sheet {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  --font-family-heading: var(--font-sans), sans-serif;
+  --font-family-body: var(--font-sans), sans-serif;
+  --font-family-code: ui-monospace, "SF Mono", Consolas, monospace;
+}
+
+.outline {
+  box-sizing: border-box;
+  width: 220px;
+  flex-shrink: 0;
+  overflow: auto;
+  padding: 1.5rem 0.75rem;
+}
+
+.outline a {
+  font-family: var(--font-sans), sans-serif;
+}
+
+.document {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 2rem 2.5rem 6rem;
+}
+
+@media (max-width: 720px) {
+  .outline {
+    width: 9.5rem;
+    padding: 1rem 0.5rem;
+  }
+
+  .document {
+    padding: 1.25rem 1rem 4rem;
+  }
+}
+
+.missing {
+  margin: 2rem 2.5rem;
+  color: var(--foreground);
+}

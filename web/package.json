@@ -16,8 +16,11 @@
     "test:e2e:update-snapshots": "playwright test --update-snapshots"
   },
   "dependencies": {
+    "@astryxdesign/core": "^0.6.2",
+    "@astryxdesign/theme-neutral": "^0.6.2",
     "@base-ui/react": "^1.8.0",
     "@dnd-kit/react": "0.5.0",
+    "@stylexjs/stylex": "^0.19.1",
     "@tailwindcss/postcss": "^4.3.3",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",

@@ -1,6 +1,7 @@
 "use client";
 
 import { Circle, Square } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   appendMeetingTranscript,
@@ -13,6 +14,7 @@ import { Spinner } from "@/shared/ui/spinner";
 import { captureDisplay, captureMic } from "../lib/browserMedia";
 import { mixTabAndMic } from "../lib/mixTabAndMic";
 import { createTranscriber } from "../lib/ourApiTranscriber";
+import { endMeeting } from "../lib/endMeeting";
 import { startMeetingCapture } from "../lib/startMeetingCapture";
 import {
   captureFailureMessage,
@@ -25,10 +27,12 @@ type StartMeetingControlProps = {
 };
 
 export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
+  const router = useRouter();
   const [phase, setPhase] = useState<CapturePhase>({ status: "idle" });
   const stopRef = useRef<(() => Promise<void>) | null>(null);
   const stoppingRef = useRef<Promise<void> | null>(null);
   const liveRef = useRef(false);
+  const endingRef = useRef(false);
   const unmountedRef = useRef(false);
 
   useEffect(() => {
@@ -111,21 +115,44 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
   }
 
   async function stop() {
-    liveRef.current = false;
-    try {
-      await releaseCapture();
-    } catch {
-      void 0;
-    } finally {
-      if (!unmountedRef.current) {
+    endingRef.current = true;
+    setPhase({ status: "ending" });
+    const result = await endMeeting(meetingId, async () => {
+      try {
+        await releaseCapture();
+      } finally {
+        liveRef.current = false;
+      }
+    });
+    if (unmountedRef.current) {
+      return;
+    }
+    switch (result.status) {
+      case "ended":
+        router.push(`/session/${meetingId}/requirements`);
+        return;
+      case "failed":
+        endingRef.current = false;
+        setPhase({ status: "unsummarized" });
+        return;
+      case "nothing-to-end":
+        endingRef.current = false;
         clearMeeting(meetingId);
         setPhase({ status: "idle" });
+        return;
+      default: {
+        const _exhaustive: never = result;
+        return _exhaustive;
       }
     }
   }
 
+  function endInProgress(): boolean {
+    return endingRef.current;
+  }
+
   async function failRuntime() {
-    if (!liveRef.current) {
+    if (!liveRef.current || endInProgress()) {
       return;
     }
     liveRef.current = false;
@@ -134,7 +161,7 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
     } catch {
       void 0;
     } finally {
-      if (!unmountedRef.current) {
+      if (!unmountedRef.current && !endInProgress()) {
         setPhase({ status: "failed", reason: "transcribe-unavailable" });
       }
     }
@@ -149,7 +176,10 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
       case "requesting":
         return;
       case "capturing":
+      case "unsummarized":
         await stop();
+        return;
+      case "ending":
         return;
       default: {
         const _exhaustive: never = phase;
@@ -164,7 +194,7 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
         type="button"
         size="lg"
         className="rounded-full"
-        disabled={phase.status === "requesting"}
+        disabled={phase.status === "requesting" || phase.status === "ending"}
         onClick={() => {
           void onClick();
         }}
@@ -174,6 +204,11 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
       {phase.status === "failed" ? (
         <p className={styles["error"]} role="status">
           {captureFailureMessage(phase.reason)}
+        </p>
+      ) : null}
+      {phase.status === "unsummarized" ? (
+        <p className={styles["error"]} role="status">
+          要件定義書を作れませんでした
         </p>
       ) : null}
     </div>
@@ -189,7 +224,15 @@ function buttonContents(phase: CapturePhase): ReactNode {
           会議を開始
         </>
       );
+    case "ending":
+      return (
+        <>
+          <Spinner data-icon="inline-start" />
+          会議を終了
+        </>
+      );
     case "capturing":
+    case "unsummarized":
       return (
         <>
           <Square data-icon="inline-start" />

@@ -5,6 +5,7 @@ import {
   mintMeetingId,
   parseMeetingId,
   parseMeetingRecord,
+  transcriptUtterances,
 } from "./meeting";
 
 describe("parseMeetingId", () => {
@@ -130,5 +131,15 @@ describe("parseMeetingRecord", () => {
       parseMeetingRecord(id, { id: "other", name: "", transcript: "" }),
     ).toBeNull();
     expect(parseMeetingRecord(id, null)).toBeNull();
+  });
+});
+
+describe("transcriptUtterances", () => {
+  it("drops the timestamp prefix and keeps the spoken text", () => {
+    expect(
+      transcriptUtterances(
+        "2026-09-21T16:01:00.000Z ログインはメールでやりたい\n\n2026-09-21T16:02:00.000Z 数量の上限は未定",
+      ),
+    ).toEqual(["ログインはメールでやりたい", "数量の上限は未定"]);
   });
 });

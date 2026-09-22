@@ -2,6 +2,7 @@ from typing import Protocol
 
 from reqlogue_api.domain.advice import AdviceAnalysis, AdviceBatch
 from reqlogue_api.domain.mindmap import MindmapMarkdown, MindmapUpdate
+from reqlogue_api.domain.requirements import RequirementsSource, SectionDrafts
 from reqlogue_api.domain.transcript import AudioTurn, TranscriptText
 
 
@@ -15,3 +16,7 @@ class MindmapGenerator(Protocol):
 
 class AdviceAnalyzer(Protocol):
     async def analyze(self, analysis: AdviceAnalysis) -> AdviceBatch: ...
+
+
+class RequirementsDrafter(Protocol):
+    async def draft(self, source: RequirementsSource) -> SectionDrafts: ...

@@ -132,18 +132,29 @@ describe("createOurApiTranscriber", () => {
     expect(firstAt).toBeLessThanOrEqual(secondAt);
   });
 
-  it("does not emit a late final after stop", async () => {
-    const emit = captureChunks();
-    const held: { resolve?: (value: Response) => void } = {};
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        () =>
-          new Promise<Response>((resolve) => {
-            held.resolve = resolve;
-          }),
-      ),
+  it("emits in-flight and flushed lines before stop resolves", async () => {
+    const held: { emit?: (pcm: ArrayBuffer) => void } = {};
+    let pumpStopped = false;
+    startPcmChunks.mockImplementation(
+      (_stream: MediaStream, chunk: (pcm: ArrayBuffer) => void) => {
+        held.emit = chunk;
+        return Promise.resolve({
+          stop: () => {
+            pumpStopped = true;
+            chunk(new ArrayBuffer(4));
+            return Promise.resolve();
+          },
+        });
+      },
     );
+    const pending: Array<(value: Response) => void> = [];
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
 
     const finals: string[] = [];
     const handle = await createOurApiTranscriber("").start(
@@ -155,16 +166,92 @@ describe("createOurApiTranscriber", () => {
         throw new Error("should not fail");
       },
     );
-    emit(new ArrayBuffer(2));
+    held.emit?.(new ArrayBuffer(2));
     await vi.waitFor(() => {
-      expect(held.resolve).toBeTypeOf("function");
+      expect(pending).toHaveLength(1);
     });
-    await handle.stop();
-    held.resolve?.(jsonResponse({ text: "遅い" }));
+
+    let stopped = false;
+    const stopping = handle.stop().then(() => {
+      stopped = true;
+    });
     await vi.waitFor(() => {
-      expect(finals).toEqual([]);
+      expect(pumpStopped).toBe(true);
     });
+    expect(stopped).toBe(false);
     expect(finals).toEqual([]);
+    expect(pending).toHaveLength(1);
+
+    pending[0]?.(jsonResponse({ text: "途中" }));
+    await vi.waitFor(() => {
+      expect(finals).toEqual(["途中"]);
+      expect(pending).toHaveLength(2);
+    });
+    expect(stopped).toBe(false);
+
+    pending[1]?.(jsonResponse({ text: "締め" }));
+    await stopping;
+    expect(finals).toEqual(["途中", "締め"]);
+
+    held.emit?.(new ArrayBuffer(2));
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(finals).toEqual(["途中", "締め"]);
+  });
+
+  it("keeps a flushed line when an earlier post fails during stop", async () => {
+    const held: { emit?: (pcm: ArrayBuffer) => void } = {};
+    let pumpStopped = false;
+    startPcmChunks.mockImplementation(
+      (_stream: MediaStream, chunk: (pcm: ArrayBuffer) => void) => {
+        held.emit = chunk;
+        return Promise.resolve({
+          stop: () => {
+            pumpStopped = true;
+            chunk(new ArrayBuffer(4));
+            return Promise.resolve();
+          },
+        });
+      },
+    );
+    const pending: Array<(value: Response) => void> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            pending.push(resolve);
+          }),
+      ),
+    );
+
+    const finals: string[] = [];
+    const failures: number[] = [];
+    const handle = await createOurApiTranscriber("").start(
+      {} as MediaStream,
+      (text) => {
+        finals.push(text);
+      },
+      () => {
+        failures.push(1);
+      },
+    );
+    held.emit?.(new ArrayBuffer(2));
+    await vi.waitFor(() => {
+      expect(pending).toHaveLength(1);
+    });
+    const stopping = handle.stop();
+    await vi.waitFor(() => {
+      expect(pumpStopped).toBe(true);
+    });
+    pending[0]?.(jsonResponse({}, 503));
+    await vi.waitFor(() => {
+      expect(pending).toHaveLength(2);
+    });
+    pending[1]?.(jsonResponse({ text: "締め" }));
+    await stopping;
+    expect(finals).toEqual(["締め"]);
+    expect(failures).toEqual([]);
   });
 
   it("notifies failure when the API is unavailable", async () => {
@@ -233,5 +320,27 @@ describe("createOurApiTranscriber", () => {
       "X-Reqlogue-Overview",
     );
     await withoutOverview.stop();
+  });
+
+  it("stops after a transcription failure", async () => {
+    const emit = captureChunks();
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse({}, 503))));
+
+    const failures: number[] = [];
+    const handle = await createOurApiTranscriber("").start(
+      {} as MediaStream,
+      () => {
+        throw new Error("should not emit");
+      },
+      () => {
+        failures.push(1);
+        void handle.stop();
+      },
+    );
+    emit(new ArrayBuffer(2));
+    await vi.waitFor(() => {
+      expect(failures).toEqual([1]);
+    });
+    await handle.stop();
   });
 });

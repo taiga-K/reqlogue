@@ -43,8 +43,13 @@ export function createOurApiTranscriber(overview: string): TranscriptionPort {
   return {
     async start(stream, onFinal, onFailure) {
       let epoch = 0;
+      let closed = false;
+      let draining = false;
       let chain: Promise<void> = Promise.resolve();
       const pump = await startPcmChunks(stream, (pcm) => {
+        if (closed) {
+          return;
+        }
         const spokenAt = new Date();
         chain = chain.then(async () => {
           const started = epoch;
@@ -55,17 +60,38 @@ export function createOurApiTranscriber(overview: string): TranscriptionPort {
             }
             onFinal(text, spokenAt);
           } catch {
-            if (started === epoch) {
-              epoch += 1;
-              onFailure();
+            if (started !== epoch || draining) {
+              return;
             }
+            epoch += 1;
+            // Finish this chain step before stop waits on it.
+            queueMicrotask(() => {
+              onFailure();
+            });
           }
         });
       });
+      const settleChain = async (): Promise<void> => {
+        let pending = chain;
+        await pending;
+        while (pending !== chain) {
+          pending = chain;
+          await pending;
+        }
+      };
+      let stopping: Promise<void> | null = null;
       return {
-        stop: async () => {
-          epoch += 1;
-          await pump.stop();
+        stop: () => {
+          if (stopping === null) {
+            stopping = (async () => {
+              draining = true;
+              await pump.stop();
+              await settleChain();
+              closed = true;
+              epoch += 1;
+            })();
+          }
+          return stopping;
         },
       };
     },

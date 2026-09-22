@@ -14,11 +14,13 @@ export {
   mintMeetingId,
   parseMeetingId,
   parseMeetingRecord,
+  transcriptUtterances,
   type MeetingId,
   type MeetingRecord,
 } from "./model/meeting";
 export {
   appendMeetingTranscript,
+  removeAdviceCard,
   saveAdviceProgress,
   saveMindmapProgress,
   clearAllMeetings,
@@ -32,3 +34,14 @@ export {
   subscribeMeetings,
   writeMeeting,
 } from "./lib/meetingStorage";
+export {
+  readRequirements,
+  REQUIREMENTS_STORAGE_PREFIX,
+  requirementsStorageKey,
+  subscribeRequirements,
+  writeRequirements,
+} from "./lib/requirementsStorage";
+export {
+  parseRequirementsDocument,
+  type RequirementsDocument,
+} from "./model/requirementsDocument";

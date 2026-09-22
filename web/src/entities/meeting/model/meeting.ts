@@ -53,6 +53,23 @@ export function createMeetingRecord(
   };
 }
 
+const TRANSCRIPT_LINE = /^(\d{4}-\d{2}-\d{2}T[0-9:.]+Z) (.*)$/;
+
+export function transcriptUtterances(transcript: string): readonly string[] {
+  if (transcript.length === 0) {
+    return [];
+  }
+  const utterances: string[] = [];
+  for (const line of transcript.split("\n")) {
+    const matched = TRANSCRIPT_LINE.exec(line);
+    const speech = (matched?.[2] ?? line).trim();
+    if (speech.length > 0) {
+      utterances.push(speech);
+    }
+  }
+  return utterances;
+}
+
 export function appendTranscriptLine(
   transcript: string,
   at: Date,
