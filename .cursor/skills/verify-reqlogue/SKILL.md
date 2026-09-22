@@ -33,11 +33,11 @@ To also start the stub FastAPI (required for `transcription-api`):
 .cursor/skills/verify-reqlogue/helpers/launch --with-api
 ```
 
-That adds `REQLOGUE_TRANSCRIBER=stub uv run uvicorn reqlogue_api.main.app:app --host 127.0.0.1 --port 8017` in `api/`. Ready: `GET http://127.0.0.1:8017/health` returns exactly `{"status":"ok"}`.
+That adds `REQLOGUE_MINDMAP=stub uv run uvicorn reqlogue_api.main.app:app --host 127.0.0.1 --port 8017` in `api/`. Ready: `GET http://127.0.0.1:8017/health` returns exactly `{"status":"ok"}`.
 
 Overrides: `REQLOGUE_VERIFY_RUN_ID`, `REQLOGUE_VERIFY_WEB_PORT` (default `3317`), `REQLOGUE_VERIFY_API_PORT` (default `8017`), `REQLOGUE_VERIFY_BASE_DIR` (default `/tmp/reqlogue-verify`). Launch refuses if `/tmp/reqlogue-verify/CURRENT` already points at a live run, or if the chosen ports are listening.
 
-`NEXT_PUBLIC_API_MOCKING=enabled` makes `createTranscriber()` return the in-app stub that immediately appends `stub transcript`. That is the safe capture path. It does **not** exercise FastAPI. The HTTP contract is a separate feature (`transcription-api`). Do not treat a mocked capture as proof that `/v1/transcription` works.
+`NEXT_PUBLIC_API_MOCKING=enabled` makes `createHearing()` return the in-app stub that immediately appends `stub transcript` and a stub mindmap. That is the safe capture path. It does **not** exercise FastAPI. The HTTP contract is a separate feature (`transcription-api`). Do not treat a mocked capture as proof that `/v1/mindmap` works.
 
 A second isolated instance needs its own `REQLOGUE_VERIFY_BASE_DIR`. One base directory has a single `CURRENT` pointer, so a new run id and unused ports on that same directory are refused while a live run is current. Meeting records live in `localStorage` under `reqlogue.meeting.<id>` and are origin-scoped, so different ports do not share them. Do not double-drive one instance from two agents.
 
@@ -90,13 +90,13 @@ Prefer these stable handles from the running UI and `web/e2e/*.spec.ts`:
 | Stop capture | `getByRole("button", { name: "会議を終了" })` |
 | Capture errors | `getByRole("status")` text `画面とマイクの共有が必要です` / `タブの音声を共有してください` / `文字起こしに接続できませんでした` |
 | API health | `GET $API_URL/health` |
-| API transcribe | `POST $API_URL/v1/transcription` with `Content-Type: application/octet-stream` |
+| API mindmap | `POST $API_URL/v1/mindmap` as `multipart/form-data` with PCM audio |
 
 `はじめる` is an enabled link on home and only opens `/prepare`. `次へ` stays disabled until the trimmed meeting name is non-empty. Overview may be empty. Submit mints a UUID with `crypto.randomUUID()`, writes `reqlogue.meeting.<id>` after clearing every other `reqlogue.meeting.*` key, and `router.push`es `/session/<id>`. Replacement of a previous meeting happens on `次へ`, not on `はじめる`. Reloading that URL is the persistence check: `SessionWorkspace` rereads `localStorage` and the banner heading returns. The server snapshot is empty, so the heading is missing on the first paint; wait for it before asserting or screenshotting a named banner. The session UI does not render the overview.
 
 Meeting capture needs the fake `getDisplayMedia` / `getUserMedia` streams from `web/e2e/session.spec.ts` (`helpers/drive meeting-capture` installs them). Without fakes the browser permission dialog blocks the agent. The session main column is empty: `stub transcript` is stored, not rendered. Visible proof is the button label flipping `会議を開始` ↔ `会議を終了`. Persistence proof is the `reqlogue.meeting.*` value containing `stub transcript`, then becoming empty after `会議を終了`.
 
-Do not click coordinates. Do not call `startNewMeeting` or write `localStorage` from the harness except to read it. Do not POST to `/v1/transcription` from the browser test page and call that a capture proof.
+Do not click coordinates. Do not call `startNewMeeting` or write `localStorage` from the harness except to read it. Do not POST to `/v1/mindmap` from the browser test page and call that a capture proof.
 
 ## Evidence
 
@@ -111,7 +111,7 @@ Standards:
 
 - Exercise the real user path (home form or session buttons, or the published HTTP contract). No internal setters, no test-only endpoints.
 - Capture the action and the resulting state, not only the last screen.
-- For mutations, prove a second view: reload the session URL, or re-read `localStorage`, or GET `/health` then POST `/v1/transcription`.
+- For mutations, prove a second view: reload the session URL, or re-read `localStorage`, or GET `/health` then POST `/v1/mindmap`.
 - Mocks are allowed only at the production boundary already in the app: `NEXT_PUBLIC_API_MOCKING=enabled` replaces the FastAPI transcriber inside the browser. Record that the run used mocking. Proving FastAPI requires `--with-api` and the HTTP feature.
 - Record the feature id and entry point in `result.json`.
 - An unmet precondition is a failed path, not a skip claimed through another path.

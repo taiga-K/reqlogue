@@ -49,4 +49,4 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [Start a meeting from home](./home-start.md) covers the home link, prepare fields, named submit on `次へ`, `/session/<uuid>`, and reload persistence.
 - [Session banner](./session-banner.md) covers the wordmark header, named heading, and retired chrome.
 - [Start and end meeting capture](./meeting-capture.md) covers `会議を開始` / `会議を終了`, stored stub transcript, and media-permission failures.
-- [Transcription API](./transcription-api.md) covers FastAPI `/health` and stub `POST /v1/transcription`.
+- [Transcription API](./transcription-api.md) covers FastAPI `/health` and stub `POST /v1/mindmap`.

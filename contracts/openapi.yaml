@@ -15,45 +15,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
-  /v1/transcription:
-    post:
-      operationId: transcribeAudio
-      requestBody:
-        required: true
-        content:
-          application/octet-stream:
-            schema:
-              type: string
-              format: binary
-      responses:
-        "200":
-          description: Completed transcript text for the audio turn
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Transcript"
-        "503":
-          description: Transcriber is unavailable
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Unavailable"
   /v1/mindmap:
     post:
       operationId: updateMindmap
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: "#/components/schemas/MindmapUpdate"
+              $ref: "#/components/schemas/MindmapAudio"
       responses:
         "200":
-          description: Complete markmap Markdown for the meeting
+          description: Transcript of the audio and the complete markmap Markdown
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Mindmap"
+                $ref: "#/components/schemas/MindmapTurn"
         "503":
           description: Mindmap generator is unavailable
           content:
@@ -114,31 +91,28 @@ components:
         status:
           type: string
           enum: [ok]
-    Transcript:
+    MindmapAudio:
       type: object
       additionalProperties: false
-      required: [text]
-      properties:
-        text:
-          type: string
-    MindmapUpdate:
-      type: object
-      additionalProperties: false
-      required: [meetingId, previousMarkdown, transcriptDelta]
+      required: [meetingId, previousMarkdown, audio]
       properties:
         meetingId:
           type: string
           minLength: 1
         previousMarkdown:
           type: string
-        transcriptDelta:
+        audio:
           type: string
-    Mindmap:
+          format: binary
+          description: PCM16 mono 24 kHz little-endian
+    MindmapTurn:
       type: object
       additionalProperties: false
-      required: [markdown]
+      required: [markdown, transcript]
       properties:
         markdown:
+          type: string
+        transcript:
           type: string
     AdviceAnalysis:
       type: object

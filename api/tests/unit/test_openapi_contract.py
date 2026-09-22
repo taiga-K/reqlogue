@@ -13,7 +13,7 @@ def test_runtime_openapi_paths_match_contract(settings: Settings) -> None:
     app = create_app(settings)
     runtime = TestClient(app).get("/openapi.json").json()
     assert set(runtime["paths"]) == set(contract["paths"])
-    assert "/v1/transcription" in runtime["paths"]
+    assert "/v1/transcription" not in runtime["paths"]
     assert "/v1/mindmap" in runtime["paths"]
     assert "/v1/advice" in runtime["paths"]
     assert "/v1/requirements" in runtime["paths"]

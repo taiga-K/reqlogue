@@ -31,7 +31,7 @@ reqlogue は、要件定義ヒアリングを支援する AI エージェント�
 
 - `domain`: 純粋なドメインモデルとビジネスルール。外部フレームワークから独立して定義します
 - `application`: ユースケースとインターフェース（port）。domain と port を利用して業務フローを組み立てます
-- `infrastructure`: port の具体的な実装。Whisper、OrcaRouter、データベースなどの外部アダプターを担当します
+- `infrastructure`: port の具体的な実装。OrcaRouter などの外部アダプターを担当します
 - `presentation`: FastAPI ルーターおよび WebSocket ハンドラー。リクエスト・レスポンス DTO（HTTP スキーマ）を定義します
 - `main`: 設定読み込み、依存性注入（DI）、アプリケーションの起動配線を担当します
 - 依存性の規則: 依存方向は常に外側から内側（presentation / infrastructure → application → domain）へ向けます

@@ -1,5 +1,5 @@
 import type { AdviceColumn } from "@/entities/meeting";
-import { apiBaseUrl } from "./ourApiTranscriber";
+import { apiBaseUrl } from "./apiBaseUrl";
 
 export const STUB_REQUIREMENTS_MARKDOWN = `# 要件定義書
 

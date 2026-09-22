@@ -12,7 +12,6 @@ import {
   type MeetingRecord,
 } from "@/entities/meeting";
 import { createAdviceScheduler } from "./adviceScheduler";
-import { createMindmapScheduler } from "./mindmapScheduler";
 
 function fakeClock() {
   let now = 0;
@@ -224,7 +223,7 @@ describe("createAdviceScheduler", () => {
     scheduler.stop();
   });
 
-  it("does not re-arm either quiet timer when a card moves", async () => {
+  it("does not re-arm the quiet timer when a card moves", async () => {
     const clock = fakeClock();
     const id = mintMeetingId(() => "meet-drag");
     const card: AdviceCard = {
@@ -238,7 +237,6 @@ describe("createAdviceScheduler", () => {
       adviceCards: [card],
     });
     const adviceDeltas: string[] = [];
-    const mindmapDeltas: string[] = [];
     const advice = createAdviceScheduler({
       meetingId: id,
       read: () => readMeeting(id),
@@ -251,24 +249,10 @@ describe("createAdviceScheduler", () => {
       },
       clock,
     });
-    const mindmap = createMindmapScheduler({
-      meetingId: id,
-      read: () => readMeeting(id),
-      save: () => {},
-      update: (input) => {
-        mindmapDeltas.push(input.transcriptDelta);
-        return Promise.resolve("# 会議");
-      },
-      clock,
-    });
     const stopAdvice = subscribeMeetingTranscript(() => {
       advice.notify();
     });
-    const stopMindmap = subscribeMeetingTranscript(() => {
-      mindmap.notify();
-    });
     advice.notify();
-    mindmap.notify();
     clock.advance(400);
     const current = readMeeting(id);
     if (current === null) {
@@ -278,11 +262,8 @@ describe("createAdviceScheduler", () => {
     clock.advance(1100);
     await flush();
     expect(adviceDeltas).toEqual(["数量の上限が未定"]);
-    expect(mindmapDeltas).toEqual(["数量の上限が未定"]);
     advice.stop();
-    mindmap.stop();
     stopAdvice();
-    stopMindmap();
     clearMeeting(id);
   });
 

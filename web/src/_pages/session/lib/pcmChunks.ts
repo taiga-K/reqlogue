@@ -1,5 +1,6 @@
 const PCM_RATE = 24_000;
-const CHUNK_MS = 2_000;
+export const FRAME_MS = 100;
+const CHUNK_MS = FRAME_MS;
 const WORKLET_NAME = "reqlogue-pcm-processor";
 
 const WORKLET_SOURCE = `

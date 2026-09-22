@@ -346,6 +346,18 @@ async function driveMeetingCapture(dir) {
   };
 }
 
+async function postMindmapAudio(previousMarkdown, pcm) {
+  const body = new FormData();
+  body.set("meetingId", "meet-1");
+  body.set("previousMarkdown", previousMarkdown);
+  body.set("audio", new Blob([pcm]), "audio.pcm");
+  return fetch(`${apiUrl}/v1/mindmap`, {
+    method: "POST",
+    body,
+    signal: AbortSignal.timeout(15_000),
+  });
+}
+
 async function driveTranscriptionApi(dir) {
   if (!withApi) {
     fail(
@@ -359,27 +371,39 @@ async function driveTranscriptionApi(dir) {
   if (healthRes.status !== 200 || healthBody !== '{"status":"ok"}') {
     fail(`GET /health failed: ${healthRes.status} ${healthBody}`);
   }
-  const transcribeRes = await fetch(`${apiUrl}/v1/transcription`, {
-    method: "POST",
-    headers: { "Content-Type": "application/octet-stream" },
-    body: Buffer.from([0, 1]),
-    signal: AbortSignal.timeout(15_000),
-  });
-  const transcribeJson = await transcribeRes.json();
-  if (transcribeRes.status !== 200) {
-    fail(`POST /v1/transcription failed: ${transcribeRes.status}`);
+  const loud = Buffer.alloc(8);
+  loud.writeInt16LE(8000, 0);
+  loud.writeInt16LE(8000, 2);
+  loud.writeInt16LE(8000, 4);
+  loud.writeInt16LE(8000, 6);
+  const mindmapRes = await postMindmapAudio("", loud);
+  const mindmapJson = await mindmapRes.json();
+  if (mindmapRes.status !== 200) {
+    fail(`POST /v1/mindmap failed: ${mindmapRes.status}`);
   }
-  if (transcribeJson.text !== "stub transcript") {
-    fail(`expected stub transcript, got ${JSON.stringify(transcribeJson)}`);
+  if (
+    mindmapJson.transcript !== "stub transcript" ||
+    mindmapJson.markdown !== "# 会議\n\n- 要件"
+  ) {
+    fail(`expected stub mindmap turn, got ${JSON.stringify(mindmapJson)}`);
   }
-  if ("speaker" in transcribeJson) {
-    fail("transcript response must not include speaker");
+  if ("speaker" in mindmapJson) {
+    fail("mindmap response must not include speaker");
+  }
+  const silenceRes = await postMindmapAudio("# 会議\n\n- 残す", Buffer.alloc(8));
+  const silenceJson = await silenceRes.json();
+  if (silenceRes.status !== 200) {
+    fail(`POST /v1/mindmap silence failed: ${silenceRes.status}`);
+  }
+  if (silenceJson.transcript !== "" || silenceJson.markdown !== "# 会議\n\n- 残す") {
+    fail(`expected previous markdown for silence, got ${JSON.stringify(silenceJson)}`);
   }
   const result = {
     feature: "transcription-api",
-    entry: "POST /v1/transcription against the stub FastAPI",
+    entry: "POST /v1/mindmap against the stub FastAPI",
     health: { status: healthRes.status, body: healthBody },
-    transcribe: { status: transcribeRes.status, body: transcribeJson },
+    mindmap: { status: mindmapRes.status, body: mindmapJson },
+    silence: { status: silenceRes.status, body: silenceJson },
   };
   await writeJson(path.join(dir, "http.json"), result);
   return result;

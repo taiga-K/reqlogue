@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Request
+from typing import Annotated
+
+from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from reqlogue_api.application.analyze_advice import analyze_advice
 from reqlogue_api.application.generate_requirements import generate_requirements
-from reqlogue_api.application.transcribe import transcribe_audio
 from reqlogue_api.application.update_mindmap import update_mindmap
 from reqlogue_api.domain.advice import AdviceAnalysis
 from reqlogue_api.domain.mindmap import MindmapUpdate
@@ -14,7 +15,6 @@ from reqlogue_api.main.ioc import (
     build_advice_analyzer,
     build_mindmap_generator,
     build_requirements_drafter,
-    build_transcriber,
 )
 from reqlogue_api.presentation.http.schemas import (
     AdviceItemResponse,
@@ -22,16 +22,10 @@ from reqlogue_api.presentation.http.schemas import (
     AdviceResponse,
     HealthResponse,
     MindmapResponse,
-    MindmapUpdateRequest,
     RequirementsRequest,
     RequirementsResponse,
-    TranscriptResponse,
     UnavailableResponse,
 )
-
-
-class TranscriberUnavailableError(Exception):
-    pass
 
 
 class MindmapUnavailableError(Exception):
@@ -48,7 +42,6 @@ class RequirementsUnavailableError(Exception):
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings if settings is not None else load_settings()
-    transcriber = build_transcriber(resolved)
     mindmap_generator = build_mindmap_generator(resolved)
     advice_analyzer = build_advice_analyzer(resolved)
     requirements_drafter = build_requirements_drafter(resolved)
@@ -64,27 +57,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def get_health() -> HealthResponse:
         return HealthResponse(status="ok")
 
-    @app.post("/v1/transcription", response_model=TranscriptResponse)
-    async def post_transcription(request: Request) -> TranscriptResponse:
-        pcm = await request.body()
-        try:
-            transcript = await transcribe_audio(transcriber, pcm)
-        except Exception as error:
-            raise TranscriberUnavailableError from error
-        return TranscriptResponse(text=transcript.value)
-
     @app.post("/v1/mindmap", response_model=MindmapResponse)
-    async def post_mindmap(body: MindmapUpdateRequest) -> MindmapResponse:
+    async def post_mindmap(
+        meeting_id: Annotated[str, Form(alias="meetingId", min_length=1)],
+        audio: Annotated[UploadFile, File()],
+        previous_markdown: Annotated[str, Form(alias="previousMarkdown")] = "",
+    ) -> MindmapResponse:
+        pcm = await audio.read()
         update = MindmapUpdate(
-            meeting_id=body.meeting_id,
-            previous_markdown=body.previous_markdown,
-            transcript_delta=body.transcript_delta,
+            meeting_id=meeting_id,
+            previous_markdown=previous_markdown,
+            pcm16_mono_24k=pcm,
         )
         try:
-            markdown = await update_mindmap(mindmap_generator, update)
+            turn = await update_mindmap(mindmap_generator, update)
         except Exception as error:
             raise MindmapUnavailableError from error
-        return MindmapResponse(markdown=markdown.value)
+        return MindmapResponse(markdown=turn.markdown, transcript=turn.transcript)
 
     @app.post("/v1/advice", response_model=AdviceResponse)
     async def post_advice(body: AdviceRequest) -> AdviceResponse:
@@ -131,14 +120,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception as error:
             raise RequirementsUnavailableError from error
         return RequirementsResponse(markdown=document.value)
-
-    @app.exception_handler(TranscriberUnavailableError)
-    async def unavailable_handler(
-        _request: Request,
-        _error: TranscriberUnavailableError,
-    ) -> JSONResponse:
-        payload = UnavailableResponse(status="unavailable")
-        return JSONResponse(status_code=503, content=payload.model_dump())
 
     @app.exception_handler(MindmapUnavailableError)
     async def mindmap_unavailable_handler(
