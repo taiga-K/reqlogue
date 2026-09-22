@@ -120,7 +120,7 @@ fi
 if [[ "$WITH_API" -eq 1 ]]; then
   if ! command -v uv >/dev/null 2>&1; then
     echo "refuse: uv is required for --with-api. Install uv, then retry." >&2
-    echo "Repo command: cd api && uv sync --extra dev && REQLOGUE_TRANSCRIBER=stub uv run uvicorn reqlogue_api.main.app:app --port $API_PORT" >&2
+    echo "Repo command: cd api && uv sync --extra dev && REQLOGUE_MINDMAP=stub uv run uvicorn reqlogue_api.main.app:app --port $API_PORT" >&2
     exit 1
   fi
   echo "syncing api dependencies..."
@@ -128,7 +128,7 @@ if [[ "$WITH_API" -eq 1 ]]; then
   CORS_ORIGINS="$WEB_URL,http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:3217"
   API_PID="$(
     start_session "$RUN_DIR/api.pid" "$RUN_DIR/api.log" "$REPO_ROOT/api" -- \
-      env REQLOGUE_TRANSCRIBER=stub CORS_ORIGINS="$CORS_ORIGINS" \
+      env REQLOGUE_MINDMAP=stub CORS_ORIGINS="$CORS_ORIGINS" \
       uv run uvicorn reqlogue_api.main.app:app --host 127.0.0.1 --port "$API_PORT"
   )"
 fi

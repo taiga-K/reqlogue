@@ -1,6 +1,6 @@
 # reqlogue
 
-要件定義ヒアリングを支援する AI エージェント。会議音声をリアルタイムで文字起こしし、その場でマインドマップを更新し、曖昧・矛盾・漏れを検出して助言を行い、会議終了後に Markdown 形式の要件定義書を出力します。
+要件定義ヒアリングを支援する AI エージェント。会議音声からマインドマップを更新し、曖昧・矛盾・漏れを検出して助言を行い、会議終了後に Markdown 形式の要件定義書を出力します。
 
 使うのはブラウザだけであり、会議の相手（クライアント等）は通常の Google Meet などのまま参加します。初回認証はありません。
 
@@ -24,7 +24,7 @@ reqlogue/
 │   ├── src/reqlogue_api/
 │   │   ├── domain/       # 純粋なドメインモデル・ビジネスルール
 │   │   ├── application/  # ユースケース・ポート（インターフェース）
-│   │   ├── infrastructure/# Whisper・OrcaRouter 外部連携・スタブ
+│   │   ├── infrastructure/# OrcaRouter 外部連携・スタブ
 │   │   ├── presentation/ # FastAPI HTTP ルーター・スキーマ
 │   │   └── main/         # 設定読み込み・依存性注入（DI）・アプリ起動配線
 │   ├── tests/            # 単体テスト・HTTP 契約検証
@@ -59,8 +59,8 @@ reqlogue/
 | **バックエンド言語** | Python >=3.12 |
 | **バックエンド パッケージ管理** | `uv` (lockfile 必須) |
 | **バックエンド検証** | Ruff (lint), Mypy (strict), Pytest (HTTP契約・単体テスト) |
-| **音声認識 (STT)** | OpenAI GPT-Realtime-Whisper (バックエンド経由) |
-| **AI Gateway** | OrcaRouter (`orcarouter/meeting-support-lite`, `orcarouter/requirements-quality`) |
+| **会議音声** | OrcaRouter `google/gemini-3.8-flash`（音声から文字起こしとマインドマップ） |
+| **AI Gateway** | OrcaRouter（`google/gemini-3.8-flash`, `orcarouter/meeting-support-lite`, `orcarouter/requirements-quality`） |
 | **API 契約** | OpenAPI 3.1 (`contracts/openapi.yaml`) |
 | **CI/CD** | GitHub Actions (Node 22 / uv) |
 
@@ -68,7 +68,7 @@ reqlogue/
 
 ## 環境変数
 
-フロントエンドから OpenAI や OrcaRouter へ直接通信しません。外部 LLM / 音声認識キーはバックエンド（FastAPI）だけが保持します。
+フロントエンドから OrcaRouter へ直接通信しません。外部 LLM の API キーはバックエンド（FastAPI）だけが保持します。
 
 ### バックエンド (`api/`)
 
@@ -76,8 +76,6 @@ reqlogue/
 
 | 変数 | 必須 / デフォルト | 説明 |
 | :--- | :--- | :--- |
-| `OPENAI_API_KEY` | 実運用時は必須 | GPT-Realtime-Whisper 音声認識用 API キー。バックエンドのみで使用します |
-| `REQLOGUE_TRANSCRIBER` | 任意 (デフォルト: `OPENAI_API_KEY` 設定時は `openai`、未設定時は `stub`) | 音声文字起こしアダプタの指定 (`stub` または `openai`)。明示的に `stub` が指定されている場合は API キーがあってもスタブが優先されます |
 | `ORCAROUTER_API_KEY` | 実運用時は必須 | OrcaRouter API キー。マインドマップ・アドバイス・要件定義書生成で使用します |
 | `REQLOGUE_MINDMAP` | 任意 (デフォルト: `ORCAROUTER_API_KEY` 設定時は `orcarouter`、未設定時は `stub`) | マインドマップ・アドバイス・要件定義書のアダプタ指定 (`stub` または `orcarouter`)。明示的に `stub` が指定されている場合は API キーがあってもスタブが優先されます |
 | `CORS_ORIGINS` | 任意 (デフォルト: `http://localhost:3000,http://127.0.0.1:3000,http://127.0.0.1:3217`) | 許可する CORS オリジンのカンマ区切りリスト |
@@ -91,7 +89,7 @@ reqlogue/
 | `NEXT_PUBLIC_API_BASE_URL` | 任意 (デフォルト: `http://127.0.0.1:8000`) | FastAPI バックエンドの接続先 URL |
 | `NEXT_PUBLIC_API_MOCKING` | 任意 (CI/モック用) | `enabled` に設定すると、FastAPI を呼び出さずブラウザ内部のスタブ実装および MSW を使用します |
 
-`NEXT_PUBLIC_*` に OpenAI や OrcaRouter の API キーを置かないでください。
+`NEXT_PUBLIC_*` に OrcaRouter の API キーを置かないでください。
 
 ---
 
@@ -103,13 +101,11 @@ reqlogue/
 cd api
 uv sync --extra dev
 # スタブモード（外部 API キー不要）で起動する場合:
-REQLOGUE_TRANSCRIBER=stub REQLOGUE_MINDMAP=stub uv run uvicorn reqlogue_api.main.app:app --reload --port 8000
+REQLOGUE_MINDMAP=stub uv run uvicorn reqlogue_api.main.app:app --reload --port 8000
 
-# 外部 API（OpenAI / OrcaRouter）を利用して起動する場合:
-# export OPENAI_API_KEY="your-openai-key"
+# OrcaRouter を利用して起動する場合:
 # export ORCAROUTER_API_KEY="your-orcarouter-key"
 # export REQLOGUE_MINDMAP="orcarouter"
-# export REQLOGUE_TRANSCRIBER="openai"
 # uv run uvicorn reqlogue_api.main.app:app --reload --port 8000
 ```
 
@@ -129,7 +125,7 @@ pnpm dev      # http://localhost:3000
 
 Google Meet や外部 API キーがない環境でも、音声を含むタブの画面共有とマイク共有を許可すれば、スタブ動作で準備〜会議進行〜マインドマップ・助言〜要件定義書生成の全フローを確認できます。
 
-1. バックエンドをスタブモード（`REQLOGUE_TRANSCRIBER=stub REQLOGUE_MINDMAP=stub`）で起動し、フロントエンドを起動して `http://localhost:3000` を開く。
+1. バックエンドをスタブモード（`REQLOGUE_MINDMAP=stub`）で起動し、フロントエンドを起動して `http://localhost:3000` を開く。
 2. ホーム画面（`/`）で **はじめる** をクリックする（初回ログインは不要）。
 3. 会議準備画面（`/prepare`）で会議名（例：「新サービスの打ち合わせ」）を入力し（概要は任意）、**次へ** をクリックする。
 4. セッション画面（`/session/[meetingId]`）が表示される。左メニューから「マインドマップ」と「アドバイス」の切り替えができることを確認する。
@@ -140,7 +136,7 @@ Google Meet や外部 API キーがない環境でも、音声を含むタブの
 
 ### B. Google Meet 併用の実機シナリオ
 
-1. `OPENAI_API_KEY`、`ORCAROUTER_API_KEY` を設定し、`REQLOGUE_MINDMAP=orcarouter`、`REQLOGUE_TRANSCRIBER=openai` でバックエンドとフロントエンドを起動する。
+1. `ORCAROUTER_API_KEY` を設定し、`REQLOGUE_MINDMAP=orcarouter` でバックエンドとフロントエンドを起動する。
 2. Chrome で Google Meet を開き、相手は通常どおり参加する。
 3. reqlogue を Meet の横に並べてブラウザで開き、ホームから **はじめる** を押して会議名を入力し **次へ** を進める。
 4. **会議を開始** を押し、画面共有ピッカーで「Chrome タブ」→「Meet のタブ」を選択し、必ず **タブの音声を共有** を ON にして共有する（マイクも許可）。
@@ -149,10 +145,10 @@ Google Meet や外部 API キーがない環境でも、音声を含むタブの
 
 ### マインドマップと助言の更新のしかた
 
-- **音声の取得と文字起こし**: ブラウザの `getDisplayMedia`（タブ音声）と `getUserMedia`（マイク音声）を `AudioContext` で合成し、FastAPI（`POST /v1/transcription`）へ送信して文字起こしテキストを取得します。文字起こしテキストはブラウザの `localStorage` に保存され、UI 上には直接表示されません。
-- **送信タイミング**: 発話後、確定した文字起こしが 1,500ms 途切れたタイミング（`QUIET_MS`）で更新 API を呼び出します（相槌「うん」「はい」「ええ」のみの場合は送信しません）。未送信テキストがおよそ 200 文字（`CHAR_CUT`）を超えた場合は次の改行で区切って送信し、区切りが来ない場合も 20,000ms（`BOUNDARY_WAIT_MS`）で送信します。先行呼び出しの処理中は多重実行せず、処理完了後に溜まった差分を 1 回にまとめて送信します。
-- **マインドマップ更新**: FastAPI（`POST /v1/mindmap`）経由で OrcaRouter（`orcarouter/meeting-support-lite`）を呼び出し、これまでのマインドマップ Markdown と新しい発話差分から完全な markmap Markdown を返します。ルート見出しはフロントエンド側で常に会議名に固定されます（`pinMindmapRoot`）。
-- **アドバイス検出**: 同様のタイミングで FastAPI（`POST /v1/advice`）へ発話差分と通知済みテーマ一覧を送信し、1 回あたり最大 2 件の助言カード（タイトル、理由、確認の質問、引用）が返されます。既存カードと重複しないものがカンバンの「アドバイス」列に追加されます。
+- **音声の取得**: ブラウザの `getDisplayMedia`（タブ音声）と `getUserMedia`（マイク音声）を `AudioContext` で合成し、約 100ms の PCM フレームとして蓄積します。文字起こしテキストはブラウザの `localStorage` に保存され、UI 上には直接表示されません。
+- **送信タイミング**: 音量のあるフレームを蓄積し、0.8 秒の沈黙が続いたときに FastAPI（`POST /v1/mindmap`）へ送ります。沈黙だけの区間は送りません。時間の上限では区切りません。会議終了時に残っている音声はその時点で送り、進行中の応答を待ってから要件定義書を作ります。
+- **マインドマップ更新**: FastAPI が OrcaRouter（`google/gemini-3.8-flash`）へ前回の Markdown と音声を渡し、文字起こしと完全な markmap Markdown を同時に受け取ります。ルート見出しはフロントエンド側で常に会議名に固定されます（`pinMindmapRoot`）。
+- **アドバイス検出**: 文字起こしが追記されたあと、発話が 1,500ms 途切れたタイミングで FastAPI（`POST /v1/advice`）へ発話差分と通知済みテーマ一覧を送信し、1 回あたり最大 2 件の助言カード（タイトル、理由、確認の質問、引用）が返されます。既存カードと重複しないものがカンバンの「アドバイス」列に追加されます。
 - **要件定義書の作成**: 会議終了時に FastAPI（`POST /v1/requirements`）へ会議名、全発話ログ、および助言カード一覧を送信し、OrcaRouter（`orcarouter/requirements-quality`）によって 7 つの章立て（概要・ゴール、スコープ、業務フロー、機能要件、非機能要件、未決事項・リスク、変更履歴）を持つ Markdown 要件定義書が生成されます。
 
 ---

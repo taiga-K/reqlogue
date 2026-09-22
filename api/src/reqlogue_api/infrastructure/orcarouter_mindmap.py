@@ -1,20 +1,26 @@
+import base64
 import json
+import struct
 from collections.abc import Awaitable, Callable
 
 import httpx
 
-from reqlogue_api.domain.mindmap import MindmapMarkdown, MindmapUpdate
+from reqlogue_api.domain.mindmap import MindmapTurn, MindmapUpdate
 
 ORCAROUTER_CHAT_URL = "https://api.orcarouter.ai/v1/chat/completions"
+GEMINI_FLASH = "google/gemini-3.8-flash"
 MEETING_SUPPORT_LITE = "orcarouter/meeting-support-lite"
+PCM_RATE = 24_000
+REQUEST_TIMEOUT_SECONDS = 60.0
 SYSTEM_PROMPT = """あなたは要件定義ヒアリングのマインドマップ編集者です。
 会話から要件の対象とその詳細を抽出し、markmap で
 視覚的に理解しやすいマインドマップの Markdown を作成・更新します。
 聞いた言葉をベースにし、話していない推測の手順は足しません。
 
 【出力】
-毎回 markmap 用の完全な Markdown 文書だけを返してください。
-コードフェンスは付けないでください。
+毎回 JSON オブジェクトだけを返してください。コードフェンスは付けないでください。
+transcript は音声で聞いた発話です。相槌や無音だけのときは空文字です。
+markdown は markmap 用の完全な Markdown 文書です。
 先頭の見出しは1つだけです（# 会議名）。
 話題はリストの枝で表現し、見出しは増やさないでください。
 ノードの差分パッチではなく、常に全体の Markdown を出力してください。
@@ -72,31 +78,71 @@ class MindmapGenerateError(Exception):
 
 
 async def _post_json(url: str, headers: dict[str, str], body: bytes) -> tuple[int, str]:
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
         response = await client.post(url, headers=headers, content=body)
         return response.status_code, response.text
 
 
-def user_prompt(previous_markdown: str, transcript_delta: str) -> str:
+def pcm16_to_wav(pcm: bytes, rate: int = PCM_RATE) -> bytes:
+    data_size = len(pcm)
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF",
+        36 + data_size,
+        b"WAVE",
+        b"fmt ",
+        16,
+        1,
+        1,
+        rate,
+        rate * 2,
+        2,
+        16,
+        b"data",
+        data_size,
+    )
+    return header + pcm
+
+
+def user_prompt(previous_markdown: str) -> str:
     if previous_markdown == "":
         return (
-            "次の文字起こしから、要件の対象を親にし、性質や条件を子にした"
+            "添付した音声から、要件の対象を親にし、性質や条件を子にした"
             "マインドマップの Markdown を作ってください。"
-            "「見てほしい」「できれば」などの依頼動詞・クッション言葉・無意味な断片は除外してください。\n\n"
-            f"{transcript_delta}"
+            "聞いた発話を transcript に書いてください。"
+            "「見てほしい」「できれば」などの依頼動詞・クッション言葉・無意味な断片は除外してください。"
         )
     return (
         "前回のマインドマップ Markdown です。"
         "これまでの枝は、新しい発話が否定しない限り残してください。"
-        "新しい発話から要件の対象や詳細を抽出し、適切な枝に追加または第1階層の枝を足してください。"
+        "添付した音声から要件の対象や詳細を抽出し、適切な枝に追加または第1階層の枝を足してください。"
         "質問に回答があった場合は、選ばれた内容を反映してください。"
+        "聞いた発話を transcript に書いてください。"
         "「見てほしい」「できれば」などの依頼動詞・クッション言葉・無意味な断片は枝に含めないでください。\n\n"
-        f"{previous_markdown}\n\n"
-        f"新しい発話:\n{transcript_delta}"
+        f"{previous_markdown}"
     )
 
 
-def markdown_from_chat(raw: str) -> str:
+def response_format() -> dict[str, object]:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "mindmap_turn",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["transcript", "markdown"],
+                "properties": {
+                    "transcript": {"type": "string"},
+                    "markdown": {"type": "string"},
+                },
+            },
+        },
+    }
+
+
+def turn_from_chat(raw: str) -> MindmapTurn:
     try:
         payload: object = json.loads(raw)
     except json.JSONDecodeError as error:
@@ -115,10 +161,24 @@ def markdown_from_chat(raw: str) -> str:
     content = message.get("content")
     if not isinstance(content, str) or content.strip() == "":
         raise MindmapGenerateError("invalid mindmap response")
-    markdown = strip_fence(content)
-    if markdown == "":
+    return turn_from_content(strip_fence(content))
+
+
+def turn_from_content(content: str) -> MindmapTurn:
+    try:
+        payload: object = json.loads(content)
+    except json.JSONDecodeError as error:
+        raise MindmapGenerateError("invalid mindmap response") from error
+    if not isinstance(payload, dict):
         raise MindmapGenerateError("invalid mindmap response")
-    return markdown
+    transcript = payload.get("transcript")
+    markdown = payload.get("markdown")
+    if not isinstance(transcript, str) or not isinstance(markdown, str):
+        raise MindmapGenerateError("invalid mindmap response")
+    document = strip_fence(markdown)
+    if document == "":
+        raise MindmapGenerateError("invalid mindmap response")
+    return MindmapTurn(markdown=document, transcript=transcript.strip())
 
 
 def strip_fence(content: str) -> str:
@@ -141,20 +201,29 @@ class OrcaRouterMindmapGenerator:
         self._api_key = api_key
         self._post = post
 
-    async def generate(self, update: MindmapUpdate) -> MindmapMarkdown:
+    async def generate(self, update: MindmapUpdate) -> MindmapTurn:
+        wav = pcm16_to_wav(update.pcm16_mono_24k)
+        instruction = user_prompt(update.previous_markdown)
         body = json.dumps(
             {
-                "model": MEETING_SUPPORT_LITE,
+                "model": GEMINI_FLASH,
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
-                        "content": user_prompt(
-                            update.previous_markdown,
-                            update.transcript_delta,
-                        ),
+                        "content": [
+                            {"type": "text", "text": instruction},
+                            {
+                                "type": "input_audio",
+                                "input_audio": {
+                                    "data": base64.b64encode(wav).decode("ascii"),
+                                    "format": "wav",
+                                },
+                            },
+                        ],
                     },
                 ],
+                "response_format": response_format(),
             },
             ensure_ascii=False,
         ).encode("utf-8")
@@ -166,4 +235,4 @@ class OrcaRouterMindmapGenerator:
         status, raw = await self._post(ORCAROUTER_CHAT_URL, headers, body)
         if status >= 400:
             raise MindmapGenerateError("mindmap unavailable")
-        return MindmapMarkdown(markdown_from_chat(raw))
+        return turn_from_chat(raw)

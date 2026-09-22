@@ -16,8 +16,6 @@ import {
 import { MeetingHeader } from "@/shared/ui/meeting-header";
 import { createAdviceUpdater } from "../lib/ourApiAdvice";
 import { createAdviceScheduler } from "../lib/adviceScheduler";
-import { createMindmapUpdater } from "../lib/ourApiMindmap";
-import { createMindmapScheduler } from "../lib/mindmapScheduler";
 import { pinMindmapRoot } from "../model/mindmapRoot";
 import { AdviceBoard } from "./AdviceBoard";
 import { SessionMindmap } from "./SessionMindmap";
@@ -60,25 +58,6 @@ export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
     }
     saveMindmapProgress(meetingId, shownMarkdown, record.sentTranscriptOffset);
   }, [meetingId, mindmapMarkdown, shownMarkdown]);
-
-  useEffect(() => {
-    const scheduler = createMindmapScheduler({
-      meetingId,
-      read: () => readMeeting(meetingId),
-      save: (markdown, sentTranscriptOffset) => {
-        saveMindmapProgress(meetingId, markdown, sentTranscriptOffset);
-      },
-      update: createMindmapUpdater(),
-    });
-    const unsubscribe = subscribeMeetingTranscript(() => {
-      scheduler.notify();
-    });
-    scheduler.notify();
-    return () => {
-      unsubscribe();
-      scheduler.stop();
-    };
-  }, [meetingId]);
 
   useEffect(() => {
     const scheduler = createAdviceScheduler({

@@ -1,5 +1,5 @@
 import type { AdviceDraft } from "@/entities/meeting";
-import { apiBaseUrl } from "./ourApiTranscriber";
+import { apiBaseUrl } from "./apiBaseUrl";
 
 export const STUB_ADVICE_ITEMS: readonly AdviceDraft[] = [
   {

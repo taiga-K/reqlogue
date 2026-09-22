@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  parseMindmapResponse,
-  postMindmapUpdate,
-} from "./ourApiMindmap";
+import { parseMindmapTurn, postMindmapAudio } from "./ourApiMindmap";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -15,39 +12,46 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("parseMindmapResponse", () => {
-  it("reads markdown and rejects empty payloads", () => {
-    expect(parseMindmapResponse({ markdown: "  # 会議  " })).toBe("# 会議");
-    expect(parseMindmapResponse({ markdown: "   " })).toBeNull();
-    expect(parseMindmapResponse({ text: "# 会議" })).toBeNull();
-    expect(parseMindmapResponse(null)).toBeNull();
+describe("parseMindmapTurn", () => {
+  it("reads markdown and transcript", () => {
+    expect(
+      parseMindmapTurn({ markdown: "  # 会議  ", transcript: "  ログイン  " }),
+    ).toEqual({ markdown: "# 会議", transcript: "ログイン" });
+    expect(parseMindmapTurn({ markdown: "# 会議" })).toBeNull();
+    expect(parseMindmapTurn(null)).toBeNull();
   });
 });
 
-describe("postMindmapUpdate", () => {
-  it("posts delta JSON to FastAPI and never mentions openai hosts", async () => {
+describe("postMindmapAudio", () => {
+  it("posts PCM as multipart and never mentions openai hosts", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({ markdown: "# 会議\n\n- ログイン" }),
+      jsonResponse({
+        markdown: "# 会議\n\n- ログイン",
+        transcript: "ログインはメール",
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const markdown = await postMindmapUpdate({
+    const audio = new ArrayBuffer(4);
+    const turn = await postMindmapAudio({
       meetingId: "meet-1",
-      previousMarkdown: "",
-      transcriptDelta: "ログインはメール",
+      previousMarkdown: "# 会議",
+      audio,
     });
-    expect(markdown).toBe("# 会議\n\n- ログイン");
+    expect(turn).toEqual({
+      markdown: "# 会議\n\n- ログイン",
+      transcript: "ログインはメール",
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const call = fetchMock.mock.calls[0];
     expect(call?.[0]).toBe("http://127.0.0.1:8000/v1/mindmap");
-    expect(call?.[1]).toEqual({
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        meetingId: "meet-1",
-        previousMarkdown: "",
-        transcriptDelta: "ログインはメール",
-      }),
-    });
+    const init = call?.[1] as RequestInit;
+    expect(init.method).toBe("POST");
+    expect(init.headers).toBeUndefined();
+    expect(init.body).toBeInstanceOf(FormData);
+    const body = init.body as FormData;
+    expect(body.get("meetingId")).toBe("meet-1");
+    expect(body.get("previousMarkdown")).toBe("# 会議");
+    expect(body.get("audio")).toBeInstanceOf(Blob);
     expect(String(call?.[0])).not.toContain("api.openai.com");
     expect(String(call?.[0])).not.toContain("api.orcarouter.ai");
   });

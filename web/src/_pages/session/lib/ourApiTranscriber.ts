@@ -1,13 +1,21 @@
+import {
+  readMeeting,
+  saveMindmapProgress,
+  type MeetingId,
+} from "@/entities/meeting";
+import { pinMindmapRoot } from "../model/mindmapRoot";
+import { STUB_MINDMAP_MARKDOWN, postMindmapAudio } from "./ourApiMindmap";
 import { startPcmChunks } from "./pcmChunks";
+import { createSpeechBuffer } from "./speechBuffer";
 import type { TranscriptionPort } from "./startMeetingCapture";
 
 export const STUB_TRANSCRIPT = "stub transcript";
 
-export function createTranscriber(): TranscriptionPort {
+export function createHearing(meetingId: MeetingId): TranscriptionPort {
   if (process.env["NEXT_PUBLIC_API_MOCKING"] === "enabled") {
-    return createStubTranscriber();
+    return createStubHearing(meetingId);
   }
-  return createOurApiTranscriber();
+  return createOurApiHearing(meetingId);
 }
 
 export function createStubTranscriber(): TranscriptionPort {
@@ -21,56 +29,86 @@ export function createStubTranscriber(): TranscriptionPort {
   };
 }
 
-export function apiBaseUrl(): string {
-  return process.env["NEXT_PUBLIC_API_BASE_URL"] ?? "http://127.0.0.1:8000";
+export function createStubHearing(meetingId: MeetingId): TranscriptionPort {
+  return {
+    start(_stream, onFinal) {
+      onFinal(STUB_TRANSCRIPT, new Date());
+      const record = readMeeting(meetingId);
+      if (record !== null) {
+        saveMindmapProgress(
+          meetingId,
+          pinMindmapRoot(STUB_MINDMAP_MARKDOWN, record.name),
+          record.transcript.length,
+        );
+      }
+      return Promise.resolve({
+        stop: () => Promise.resolve(),
+      });
+    },
+  };
 }
 
-export function parseTranscriptResponse(value: unknown): string | null {
-  if (typeof value !== "object" || value === null) {
-    return null;
-  }
-  if (!("text" in value) || typeof value.text !== "string") {
-    return null;
-  }
-  const text = value.text.trim();
-  if (text.length === 0) {
-    return null;
-  }
-  return text;
-}
+export { apiBaseUrl } from "./apiBaseUrl";
 
-export function createOurApiTranscriber(): TranscriptionPort {
+export function createOurApiHearing(meetingId: MeetingId): TranscriptionPort {
   return {
     async start(stream, onFinal, onFailure) {
       let epoch = 0;
       let closed = false;
       let draining = false;
       let chain: Promise<void> = Promise.resolve();
+      const buffer = createSpeechBuffer();
+
+      const deliver = async (pcm: ArrayBuffer, spokenAt: Date): Promise<void> => {
+        const started = epoch;
+        try {
+          const previous = readMeeting(meetingId)?.mindmapMarkdown ?? "";
+          const turn = await postMindmapAudio({
+            meetingId,
+            previousMarkdown: previous,
+            audio: pcm,
+          });
+          if (started !== epoch) {
+            return;
+          }
+          if (turn.transcript.length > 0) {
+            onFinal(turn.transcript, spokenAt);
+          }
+          const latest = readMeeting(meetingId);
+          if (latest === null) {
+            return;
+          }
+          const markdown =
+            turn.markdown.length === 0
+              ? latest.mindmapMarkdown
+              : pinMindmapRoot(turn.markdown, latest.name);
+          saveMindmapProgress(meetingId, markdown, latest.transcript.length);
+        } catch {
+          if (started !== epoch || draining) {
+            return;
+          }
+          epoch += 1;
+          queueMicrotask(() => {
+            onFailure();
+          });
+        }
+      };
+
+      const enqueue = (pcm: ArrayBuffer, spokenAt: Date): void => {
+        chain = chain.then(() => deliver(pcm, spokenAt));
+      };
+
       const pump = await startPcmChunks(stream, (pcm) => {
         if (closed) {
           return;
         }
-        const spokenAt = new Date();
-        chain = chain.then(async () => {
-          const started = epoch;
-          try {
-            const text = await postPcm(pcm);
-            if (started !== epoch || text === null) {
-              return;
-            }
-            onFinal(text, spokenAt);
-          } catch {
-            if (started !== epoch || draining) {
-              return;
-            }
-            epoch += 1;
-            // Finish this chain step before stop waits on it.
-            queueMicrotask(() => {
-              onFailure();
-            });
-          }
-        });
+        const speech = buffer.push(pcm);
+        if (speech === null) {
+          return;
+        }
+        enqueue(speech, new Date());
       });
+
       const settleChain = async (): Promise<void> => {
         let pending = chain;
         await pending;
@@ -79,6 +117,7 @@ export function createOurApiTranscriber(): TranscriptionPort {
           await pending;
         }
       };
+
       let stopping: Promise<void> | null = null;
       return {
         stop: () => {
@@ -87,6 +126,11 @@ export function createOurApiTranscriber(): TranscriptionPort {
               draining = true;
               await pump.stop();
               await settleChain();
+              const rest = buffer.flush();
+              if (rest !== null && !closed) {
+                enqueue(rest, new Date());
+                await settleChain();
+              }
               closed = true;
               epoch += 1;
             })();
@@ -96,31 +140,4 @@ export function createOurApiTranscriber(): TranscriptionPort {
       };
     },
   };
-}
-
-async function postPcm(pcm: ArrayBuffer): Promise<string | null> {
-  const response = await fetch(`${apiBaseUrl()}/v1/transcription`, {
-    method: "POST",
-    headers: { "Content-Type": "application/octet-stream" },
-    body: pcm,
-  });
-  if (!response.ok) {
-    throw new Error("transcription unavailable");
-  }
-  const value: unknown = await response.json();
-  if (!hasTranscriptText(value)) {
-    throw new Error("invalid transcript response");
-  }
-  return parseTranscriptResponse(value);
-}
-
-function hasTranscriptText(
-  value: unknown,
-): value is { readonly text: string } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "text" in value &&
-    typeof value.text === "string"
-  );
 }

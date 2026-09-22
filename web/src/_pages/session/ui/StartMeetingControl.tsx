@@ -13,7 +13,7 @@ import { Button } from "@/shared/ui/button";
 import { Spinner } from "@/shared/ui/spinner";
 import { captureDisplay, captureMic } from "../lib/browserMedia";
 import { mixTabAndMic } from "../lib/mixTabAndMic";
-import { createTranscriber } from "../lib/ourApiTranscriber";
+import { createHearing } from "../lib/ourApiTranscriber";
 import { endMeeting } from "../lib/endMeeting";
 import { startMeetingCapture } from "../lib/startMeetingCapture";
 import {
@@ -74,7 +74,7 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
       captureDisplay,
       captureMic,
       mix: mixTabAndMic,
-      transcribe: createTranscriber(),
+      transcribe: createHearing(meetingId),
       appendTranscript: (at, text) => {
         if (!liveRef.current) {
           return;

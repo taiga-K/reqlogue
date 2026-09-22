@@ -37,5 +37,5 @@ Preconditions:
 - Without fake media the browser shows a picker the agent cannot complete. Always drive this feature through `helpers/drive meeting-capture`.
 - The visible UI never lists the transcript. Counting page text `stub transcript` as a success is a false pass; the proof is the stored record and the button label.
 - Ending a meeting deletes the stored record, including the name. The banner heading disappears after `会議を終了` even though the URL is unchanged.
-- `NEXT_PUBLIC_API_MOCKING=enabled` is baked into this launch. A green capture here is not a `/v1/transcription` proof.
+- `NEXT_PUBLIC_API_MOCKING=enabled` is baked into this launch. A green capture here is not a `/v1/mindmap` proof.
 - Status `タブの音声を共有してください` means the display stream had no audio track. Status `文字起こしに接続できませんでした` is the live-API failure path, which this mocked launch does not take.
