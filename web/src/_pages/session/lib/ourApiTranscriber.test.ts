@@ -188,7 +188,9 @@ describe("createOurApiTranscriber", () => {
   });
 
   it("sends a percent-encoded overview header only when overview is present", async () => {
-    const fetchMock = vi.fn(() => Promise.resolve(jsonResponse({ text: "はい" })));
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(() => Promise.resolve(jsonResponse({ text: "はい" })));
     vi.stubGlobal("fetch", fetchMock);
 
     const emitWithOverview = captureChunks();
@@ -227,9 +229,9 @@ describe("createOurApiTranscriber", () => {
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       headers: { "Content-Type": "application/octet-stream" },
     });
-    expect(
-      (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.headers,
-    ).not.toHaveProperty("X-Reqlogue-Overview");
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty(
+      "X-Reqlogue-Overview",
+    );
     await withoutOverview.stop();
   });
 });
