@@ -39,6 +39,7 @@ select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/reqlogue_api/infrastructure/advice_system_prompt.py" = ["E501"]
+"src/reqlogue_api/infrastructure/requirements_system_prompt.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -49,7 +49,19 @@ test("start meeting writes local transcript and end clears it", async ({
   await expect(page.getByText("stub transcript")).toHaveCount(0);
 
   await page.getByRole("button", { name: "会議を終了" }).click();
-  await expect(page.getByRole("button", { name: "会議を開始" })).toBeVisible();
+  await expect(page).toHaveURL(/\/requirements$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "要件定義書" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "1. プロジェクト/会議概要・背景・ゴール",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByRole("heading", { name: "新サービスの打ち合わせ" }),
+  ).toBeVisible();
   await expect.poll(async () => readMeetingKeys(page)).toEqual([]);
   await expect(page.getByRole("main").getByRole("img")).toHaveCount(0);
 });
