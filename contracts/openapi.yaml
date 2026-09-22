@@ -82,6 +82,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Unavailable"
+  /v1/requirements:
+    post:
+      operationId: writeRequirements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequirementsDraft"
+      responses:
+        "200":
+          description: Seven-section requirements Markdown for the ended meeting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequirementsDocument"
+        "503":
+          description: Requirements drafter is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Unavailable"
 components:
   schemas:
     Health:
@@ -155,6 +177,47 @@ components:
           maxItems: 2
           items:
             $ref: "#/components/schemas/AdviceItem"
+    RequirementsDetection:
+      type: object
+      additionalProperties: false
+      required: [title, reason, suggestedQuestion, quote, column]
+      properties:
+        title:
+          type: string
+        reason:
+          type: string
+        suggestedQuestion:
+          type: string
+        quote:
+          type: string
+        column:
+          type: string
+          enum: [advice, doing, done]
+    RequirementsDraft:
+      type: object
+      additionalProperties: false
+      required: [meetingId, meetingName, utterances, detections]
+      properties:
+        meetingId:
+          type: string
+          minLength: 1
+        meetingName:
+          type: string
+        utterances:
+          type: array
+          items:
+            type: string
+        detections:
+          type: array
+          items:
+            $ref: "#/components/schemas/RequirementsDetection"
+    RequirementsDocument:
+      type: object
+      additionalProperties: false
+      required: [markdown]
+      properties:
+        markdown:
+          type: string
     Unavailable:
       type: object
       additionalProperties: false

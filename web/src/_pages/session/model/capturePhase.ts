@@ -7,6 +7,8 @@ export type CapturePhase =
   | { readonly status: "idle" }
   | { readonly status: "requesting" }
   | { readonly status: "capturing" }
+  | { readonly status: "ending" }
+  | { readonly status: "unsummarized" }
   | { readonly status: "failed"; readonly reason: CaptureFailure };
 
 export function captureFailureMessage(reason: CaptureFailure): string {

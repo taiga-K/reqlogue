@@ -1,0 +1,36 @@
+.document {
+  flex: 1;
+  overflow: auto;
+  padding: 2rem 2.5rem 6rem;
+  max-width: 48rem;
+  color: var(--foreground);
+}
+
+.document h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 1.3;
+}
+
+.document h2 {
+  margin: 1.75rem 0 0.75rem;
+  font-size: 1.2rem;
+  line-height: 1.4;
+}
+
+.document h3,
+.document p,
+.document li {
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.document p,
+.document ul {
+  margin: 0.5rem 0 0;
+}
+
+.missing {
+  margin: 2rem 2.5rem;
+  color: var(--foreground);
+}
