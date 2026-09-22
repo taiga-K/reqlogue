@@ -1,7 +1,30 @@
 from reqlogue_api.infrastructure.openai_events import (
+    delta_from_event,
     is_error_event,
     transcript_from_event,
 )
+
+
+def test_reads_incremental_deltas() -> None:
+    assert (
+        delta_from_event(
+            {
+                "type": "conversation.item.input_audio_transcription.delta",
+                "delta": "  こん  ",
+            }
+        )
+        == "こん"
+    )
+    assert delta_from_event({"type": "error", "delta": "こん"}) is None
+    assert (
+        delta_from_event(
+            {
+                "type": "conversation.item.input_audio_transcription.delta",
+                "delta": "   ",
+            }
+        )
+        is None
+    )
 
 
 def test_reads_completed_transcript_and_ignores_other_events() -> None:

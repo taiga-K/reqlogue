@@ -1,5 +1,5 @@
 const PCM_RATE = 24_000;
-const CHUNK_MS = 2_000;
+const APPEND_MS = 200;
 const WORKLET_NAME = "reqlogue-pcm-processor";
 
 const WORKLET_SOURCE = `
@@ -35,7 +35,7 @@ export async function startPcmChunks(
   const node = new AudioWorkletNode(context, WORKLET_NAME);
   const pending: Float32Array[] = [];
   let pendingSamples = 0;
-  const chunkSamples = Math.floor((PCM_RATE * CHUNK_MS) / 1000);
+  const chunkSamples = Math.floor((PCM_RATE * APPEND_MS) / 1000);
 
   node.port.onmessage = (event: MessageEvent<Float32Array>) => {
     pending.push(event.data);

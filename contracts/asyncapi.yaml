@@ -1,0 +1,34 @@
+asyncapi: 2.6.0
+info:
+  title: reqlogue live transcription
+  version: 0.1.0
+servers:
+  api:
+    url: http://127.0.0.1:8000
+    protocol: ws
+channels:
+  /v1/transcription/stream:
+    description: >
+      One live transcription session. The client appends PCM16 mono 24 kHz
+      audio. The server forwards gpt-live-transcribe deltas as they arrive.
+    parameters:
+      overview:
+        schema:
+          type: string
+        description: Meeting overview used as the transcription prompt
+    publish:
+      message:
+        name: audio
+        payload:
+          type: string
+          format: binary
+    subscribe:
+      message:
+        name: transcriptDelta
+        payload:
+          type: object
+          required: [text]
+          properties:
+            text:
+              type: string
+              description: Incremental transcript text

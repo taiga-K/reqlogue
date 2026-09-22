@@ -39,98 +39,95 @@ export function parseTranscriptResponse(value: unknown): string | null {
   return text;
 }
 
+export function transcriptionStreamUrl(overview: string): string {
+  const url = new URL(apiBaseUrl());
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.pathname = "/v1/transcription/stream";
+  url.search = "";
+  const trimmed = overview.trim();
+  if (trimmed.length > 0) {
+    url.searchParams.set("overview", trimmed);
+  }
+  return url.toString();
+}
+
 export function createOurApiTranscriber(overview: string): TranscriptionPort {
   return {
     async start(stream, onFinal, onFailure) {
-      let epoch = 0;
-      let closed = false;
-      let draining = false;
-      let chain: Promise<void> = Promise.resolve();
-      const pump = await startPcmChunks(stream, (pcm) => {
-        if (closed) {
-          return;
-        }
-        const spokenAt = new Date();
-        chain = chain.then(async () => {
-          const started = epoch;
-          try {
-            const text = await postPcm(pcm, overview);
-            if (started !== epoch || text === null) {
-              return;
-            }
-            onFinal(text, spokenAt);
-          } catch {
-            if (started !== epoch || draining) {
-              return;
-            }
-            epoch += 1;
-            // Finish this chain step before stop waits on it.
-            queueMicrotask(() => {
-              onFailure();
-            });
-          }
+      const socket = new WebSocket(transcriptionStreamUrl(overview));
+      socket.binaryType = "arraybuffer";
+      const pending: ArrayBuffer[] = [];
+      let closing = false;
+      let failed = false;
+      const closed = new Promise<void>((resolve) => {
+        socket.addEventListener("close", () => {
+          resolve();
         });
       });
-      const settleChain = async (): Promise<void> => {
-        let pending = chain;
-        await pending;
-        while (pending !== chain) {
-          pending = chain;
-          await pending;
+
+      function fail() {
+        if (closing || failed) {
+          return;
         }
-      };
-      let stopping: Promise<void> | null = null;
+        failed = true;
+        onFailure();
+      }
+
+      socket.addEventListener("open", () => {
+        for (const pcm of pending) {
+          socket.send(pcm);
+        }
+        pending.length = 0;
+      });
+      socket.addEventListener("error", () => {
+        fail();
+      });
+      socket.addEventListener("close", (event) => {
+        if (!closing && event.code !== 1000) {
+          fail();
+        }
+      });
+      socket.addEventListener("message", (event) => {
+        if (closing || typeof event.data !== "string") {
+          return;
+        }
+        let payload: unknown;
+        try {
+          payload = JSON.parse(event.data) as unknown;
+        } catch {
+          fail();
+          return;
+        }
+        const text = parseTranscriptResponse(payload);
+        if (text !== null) {
+          onFinal(text, new Date());
+        }
+      });
+
+      const pump = await startPcmChunks(stream, (pcm) => {
+        if (closing) {
+          return;
+        }
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(pcm);
+          return;
+        }
+        pending.push(pcm);
+      });
+
       return {
-        stop: () => {
-          if (stopping === null) {
-            stopping = (async () => {
-              draining = true;
-              await pump.stop();
-              await settleChain();
-              closed = true;
-              epoch += 1;
-            })();
+        stop: async () => {
+          closing = true;
+          await pump.stop();
+          if (
+            socket.readyState === WebSocket.CONNECTING ||
+            socket.readyState === WebSocket.OPEN
+          ) {
+            socket.close();
           }
-          return stopping;
+          await closed;
         },
       };
     },
   };
-}
-
-async function postPcm(
-  pcm: ArrayBuffer,
-  overview: string,
-): Promise<string | null> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/octet-stream",
-  };
-  const trimmed = overview.trim();
-  if (trimmed.length > 0) {
-    headers["X-Reqlogue-Overview"] = encodeURIComponent(trimmed);
-  }
-  const response = await fetch(`${apiBaseUrl()}/v1/transcription`, {
-    method: "POST",
-    headers,
-    body: pcm,
-  });
-  if (!response.ok) {
-    throw new Error("transcription unavailable");
-  }
-  const value: unknown = await response.json();
-  if (!hasTranscriptText(value)) {
-    throw new Error("invalid transcript response");
-  }
-  return parseTranscriptResponse(value);
-}
-
-function hasTranscriptText(
-  value: unknown,
-): value is { readonly text: string } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "text" in value &&
-    typeof value.text === "string"
-  );
 }

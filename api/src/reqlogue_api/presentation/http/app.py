@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -33,6 +33,7 @@ from reqlogue_api.presentation.http.schemas import (
     TranscriptResponse,
     UnavailableResponse,
 )
+from reqlogue_api.presentation.http.transcription_stream import stream_transcription
 
 
 class TranscriberUnavailableError(Exception):
@@ -81,6 +82,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except Exception as error:
             raise TranscriberUnavailableError from error
         return TranscriptResponse(text=transcript.value)
+
+    @app.websocket("/v1/transcription/stream")
+    async def transcription_stream(websocket: WebSocket) -> None:
+        await stream_transcription(websocket, transcriber, resolved.cors_origins)
 
     @app.post("/v1/mindmap", response_model=MindmapResponse)
     async def post_mindmap(body: MindmapUpdateRequest) -> MindmapResponse:

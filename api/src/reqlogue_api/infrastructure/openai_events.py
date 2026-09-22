@@ -1,6 +1,7 @@
 import json
 
 COMPLETED = "conversation.item.input_audio_transcription.completed"
+DELTA = "conversation.item.input_audio_transcription.delta"
 FAILED = "conversation.item.input_audio_transcription.failed"
 
 
@@ -9,6 +10,20 @@ def is_error_event(payload: object) -> bool:
         return False
     event_type = payload.get("type")
     return event_type in {"error", FAILED}
+
+
+def delta_from_event(payload: object) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("type") != DELTA:
+        return None
+    delta = payload.get("delta")
+    if not isinstance(delta, str):
+        return None
+    text = delta.strip()
+    if text == "":
+        return None
+    return text
 
 
 def transcript_from_event(payload: object) -> str | None:

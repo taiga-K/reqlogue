@@ -5,6 +5,7 @@ from reqlogue_api.domain.transcript import AudioTurn, TranscriptText
 from reqlogue_api.infrastructure.stub_advice import STUB_ADVICE_ITEM
 from reqlogue_api.infrastructure.stub_mindmap import STUB_MINDMAP
 from reqlogue_api.infrastructure.stub_requirements import STUB_REQUIREMENTS
+from reqlogue_api.infrastructure.stub_transcriber import StubTranscriptionSession
 from reqlogue_api.main.config import Settings
 from reqlogue_api.presentation.http.app import create_app
 from reqlogue_api.presentation.http.overview_header import parse_overview_header
@@ -155,3 +156,41 @@ def test_stub_requirements_returns_seven_sections(settings: Settings) -> None:
     assert STUB_REQUIREMENTS.startswith("# 要件定義書\n")
     assert "## 4. 機能要件一覧（優先度・概要・受け入れ基準）" in STUB_REQUIREMENTS
     assert "api.orcarouter.ai" not in response.text
+
+
+def test_transcription_stream_emits_one_stub_delta(settings: Settings) -> None:
+    client = TestClient(create_app(settings))
+    with client.websocket_connect("/v1/transcription/stream") as socket:
+        socket.send_bytes(b"\x00\x01")
+        assert socket.receive_json() == {"text": "stub transcript"}
+        socket.send_bytes(b"\x02")
+
+
+def test_transcription_stream_passes_the_overview(
+    settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class RecordingTranscriber:
+        def __init__(self) -> None:
+            self.overviews: list[str] = []
+
+        async def transcribe(self, turn: AudioTurn) -> TranscriptText:
+            del turn
+            return TranscriptText("ok")
+
+        async def open_session(self, overview: str) -> StubTranscriptionSession:
+            self.overviews.append(overview)
+            return StubTranscriptionSession()
+
+    recorder = RecordingTranscriber()
+    monkeypatch.setattr(
+        "reqlogue_api.presentation.http.app.build_transcriber",
+        lambda _settings: recorder,
+    )
+    client = TestClient(create_app(settings))
+    with client.websocket_connect(
+        "/v1/transcription/stream?overview=%E6%96%B0%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9"
+    ) as socket:
+        socket.send_bytes(b"\x00\x01")
+        assert socket.receive_json() == {"text": "stub transcript"}
+    assert recorder.overviews == ["新サービス"]

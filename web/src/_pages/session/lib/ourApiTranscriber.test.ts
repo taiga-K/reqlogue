@@ -5,6 +5,7 @@ import {
   createStubTranscriber,
   parseTranscriptResponse,
   STUB_TRANSCRIPT,
+  transcriptionStreamUrl,
 } from "./ourApiTranscriber";
 
 const startPcmChunks = vi.hoisted(() => vi.fn());
@@ -13,11 +14,54 @@ vi.mock("./pcmChunks", () => ({
   startPcmChunks,
 }));
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+class FakeWebSocket {
+  static sockets: FakeWebSocket[] = [];
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+
+  binaryType = "";
+  readyState = FakeWebSocket.OPEN;
+  readonly url: string;
+  readonly sent: ArrayBuffer[] = [];
+  private readonly listeners = new Map<string, Array<(event: Event) => void>>();
+
+  constructor(url: string) {
+    this.url = url;
+    FakeWebSocket.sockets.push(this);
+  }
+
+  addEventListener(type: string, listener: (event: Event) => void) {
+    const current = this.listeners.get(type) ?? [];
+    current.push(listener);
+    this.listeners.set(type, current);
+  }
+
+  send(data: ArrayBuffer) {
+    this.sent.push(data);
+  }
+
+  close() {
+    this.readyState = FakeWebSocket.CLOSED;
+    this.emit("close", new CloseEvent("close", { code: 1000 }));
+  }
+
+  fail() {
+    this.emit("error", new Event("error"));
+    this.readyState = FakeWebSocket.CLOSED;
+    this.emit("close", new CloseEvent("close", { code: 1006 }));
+  }
+
+  serverMessage(data: string) {
+    this.emit("message", new MessageEvent("message", { data }));
+  }
+
+  private emit(type: string, event: Event) {
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(event);
+    }
+  }
 }
 
 function captureChunks(): (pcm: ArrayBuffer) => void {
@@ -40,6 +84,7 @@ function captureChunks(): (pcm: ArrayBuffer) => void {
 afterEach(() => {
   vi.unstubAllGlobals();
   startPcmChunks.mockReset();
+  FakeWebSocket.sockets = [];
 });
 
 describe("parseTranscriptResponse", () => {
@@ -78,84 +123,48 @@ describe("apiBaseUrl", () => {
   });
 });
 
+describe("transcriptionStreamUrl", () => {
+  it("uses a websocket and adds overview only when it is present", () => {
+    expect(transcriptionStreamUrl("")).toBe(
+      "ws://127.0.0.1:8000/v1/transcription/stream",
+    );
+    const withOverview = new URL(transcriptionStreamUrl("新サービス"));
+    expect(withOverview.pathname).toBe("/v1/transcription/stream");
+    expect(withOverview.searchParams.get("overview")).toBe("新サービス");
+  });
+});
+
 describe("createOurApiTranscriber", () => {
-  it("serializes posts, stamps by chunk time, and drains on stop", async () => {
+  it("streams pcm on one socket and appends transcript deltas", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
     const emit = captureChunks();
-    const pending: Array<(value: Response) => void> = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        () =>
-          new Promise<Response>((resolve) => {
-            pending.push(resolve);
-          }),
-      ),
-    );
-
-    const finals: Array<{ text: string; at: Date }> = [];
+    const finals: string[] = [];
     const handle = await createOurApiTranscriber("").start(
       {} as MediaStream,
-      (text, at) => {
-        finals.push({ text, at });
+      (text) => {
+        finals.push(text);
       },
       () => {
         throw new Error("should not fail");
       },
     );
-
-    const beforeFirst = Date.now();
     emit(new ArrayBuffer(2));
-    const afterFirst = Date.now();
-    const beforeSecond = Date.now();
-    emit(new ArrayBuffer(2));
-    const afterSecond = Date.now();
-    await vi.waitFor(() => {
-      expect(pending).toHaveLength(1);
-    });
-
-    pending[0]?.(jsonResponse({ text: "先の発話" }));
-    await vi.waitFor(() => {
-      expect(pending).toHaveLength(2);
-    });
-    pending[1]?.(jsonResponse({ text: "後の発話" }));
-    await vi.waitFor(() => {
-      expect(finals.map((line) => line.text)).toEqual(["先の発話", "後の発話"]);
-    });
+    emit(new ArrayBuffer(4));
+    expect(FakeWebSocket.sockets).toHaveLength(1);
+    expect(FakeWebSocket.sockets[0]?.sent).toHaveLength(2);
+    FakeWebSocket.sockets[0]?.serverMessage(
+      JSON.stringify({ text: "ログイン" }),
+    );
+    FakeWebSocket.sockets[0]?.serverMessage(
+      JSON.stringify({ text: "はメール" }),
+    );
+    expect(finals).toEqual(["ログイン", "はメール"]);
     await handle.stop();
-
-    const firstAt = finals[0]?.at.getTime() ?? 0;
-    const secondAt = finals[1]?.at.getTime() ?? 0;
-    expect(firstAt).toBeGreaterThanOrEqual(beforeFirst);
-    expect(firstAt).toBeLessThanOrEqual(afterFirst);
-    expect(secondAt).toBeGreaterThanOrEqual(beforeSecond);
-    expect(secondAt).toBeLessThanOrEqual(afterSecond);
-    expect(firstAt).toBeLessThanOrEqual(secondAt);
   });
 
-  it("emits in-flight and flushed lines before stop resolves", async () => {
-    const held: { emit?: (pcm: ArrayBuffer) => void } = {};
-    let pumpStopped = false;
-    startPcmChunks.mockImplementation(
-      (_stream: MediaStream, chunk: (pcm: ArrayBuffer) => void) => {
-        held.emit = chunk;
-        return Promise.resolve({
-          stop: () => {
-            pumpStopped = true;
-            chunk(new ArrayBuffer(4));
-            return Promise.resolve();
-          },
-        });
-      },
-    );
-    const pending: Array<(value: Response) => void> = [];
-    const fetchMock = vi.fn(
-      () =>
-        new Promise<Response>((resolve) => {
-          pending.push(resolve);
-        }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
+  it("ignores transcript text that arrives after stop", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const emit = captureChunks();
     const finals: string[] = [];
     const handle = await createOurApiTranscriber("").start(
       {} as MediaStream,
@@ -166,98 +175,15 @@ describe("createOurApiTranscriber", () => {
         throw new Error("should not fail");
       },
     );
-    held.emit?.(new ArrayBuffer(2));
-    await vi.waitFor(() => {
-      expect(pending).toHaveLength(1);
-    });
-
-    let stopped = false;
-    const stopping = handle.stop().then(() => {
-      stopped = true;
-    });
-    await vi.waitFor(() => {
-      expect(pumpStopped).toBe(true);
-    });
-    expect(stopped).toBe(false);
+    emit(new ArrayBuffer(2));
+    await handle.stop();
+    FakeWebSocket.sockets[0]?.serverMessage(JSON.stringify({ text: "遅い" }));
     expect(finals).toEqual([]);
-    expect(pending).toHaveLength(1);
-
-    pending[0]?.(jsonResponse({ text: "途中" }));
-    await vi.waitFor(() => {
-      expect(finals).toEqual(["途中"]);
-      expect(pending).toHaveLength(2);
-    });
-    expect(stopped).toBe(false);
-
-    pending[1]?.(jsonResponse({ text: "締め" }));
-    await stopping;
-    expect(finals).toEqual(["途中", "締め"]);
-
-    held.emit?.(new ArrayBuffer(2));
-    await Promise.resolve();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(finals).toEqual(["途中", "締め"]);
   });
 
-  it("keeps a flushed line when an earlier post fails during stop", async () => {
-    const held: { emit?: (pcm: ArrayBuffer) => void } = {};
-    let pumpStopped = false;
-    startPcmChunks.mockImplementation(
-      (_stream: MediaStream, chunk: (pcm: ArrayBuffer) => void) => {
-        held.emit = chunk;
-        return Promise.resolve({
-          stop: () => {
-            pumpStopped = true;
-            chunk(new ArrayBuffer(4));
-            return Promise.resolve();
-          },
-        });
-      },
-    );
-    const pending: Array<(value: Response) => void> = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        () =>
-          new Promise<Response>((resolve) => {
-            pending.push(resolve);
-          }),
-      ),
-    );
-
-    const finals: string[] = [];
-    const failures: number[] = [];
-    const handle = await createOurApiTranscriber("").start(
-      {} as MediaStream,
-      (text) => {
-        finals.push(text);
-      },
-      () => {
-        failures.push(1);
-      },
-    );
-    held.emit?.(new ArrayBuffer(2));
-    await vi.waitFor(() => {
-      expect(pending).toHaveLength(1);
-    });
-    const stopping = handle.stop();
-    await vi.waitFor(() => {
-      expect(pumpStopped).toBe(true);
-    });
-    pending[0]?.(jsonResponse({}, 503));
-    await vi.waitFor(() => {
-      expect(pending).toHaveLength(2);
-    });
-    pending[1]?.(jsonResponse({ text: "締め" }));
-    await stopping;
-    expect(finals).toEqual(["締め"]);
-    expect(failures).toEqual([]);
-  });
-
-  it("notifies failure when the API is unavailable", async () => {
+  it("notifies failure when the socket closes before stop", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
     const emit = captureChunks();
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse({}, 503))));
-
     const failures: number[] = [];
     await createOurApiTranscriber("").start(
       {} as MediaStream,
@@ -269,78 +195,23 @@ describe("createOurApiTranscriber", () => {
       },
     );
     emit(new ArrayBuffer(2));
-    await vi.waitFor(() => {
-      expect(failures).toEqual([1]);
-    });
+    FakeWebSocket.sockets[0]?.fail();
+    expect(failures).toEqual([1]);
   });
 
-  it("sends a percent-encoded overview header only when overview is present", async () => {
-    const fetchMock = vi.fn<
-      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-    >(() => Promise.resolve(jsonResponse({ text: "はい" })));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const emitWithOverview = captureChunks();
-    const withOverview = await createOurApiTranscriber("新サービス").start(
-      {} as MediaStream,
-      () => {},
-      () => {
-        throw new Error("should not fail");
-      },
-    );
-    emitWithOverview(new ArrayBuffer(2));
-    await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
-    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
-      headers: {
-        "Content-Type": "application/octet-stream",
-        "X-Reqlogue-Overview": "%E6%96%B0%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9",
-      },
-    });
-    await withOverview.stop();
-
-    fetchMock.mockClear();
-    const emitWithout = captureChunks();
-    const withoutOverview = await createOurApiTranscriber("").start(
-      {} as MediaStream,
-      () => {},
-      () => {
-        throw new Error("should not fail");
-      },
-    );
-    emitWithout(new ArrayBuffer(2));
-    await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
-    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
-      headers: { "Content-Type": "application/octet-stream" },
-    });
-    expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty(
-      "X-Reqlogue-Overview",
-    );
-    await withoutOverview.stop();
-  });
-
-  it("stops after a transcription failure", async () => {
+  it("puts the meeting overview on the stream url", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
     const emit = captureChunks();
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(jsonResponse({}, 503))));
-
-    const failures: number[] = [];
-    const handle = await createOurApiTranscriber("").start(
+    const handle = await createOurApiTranscriber("新サービス").start(
       {} as MediaStream,
+      () => {},
       () => {
-        throw new Error("should not emit");
-      },
-      () => {
-        failures.push(1);
-        void handle.stop();
+        throw new Error("should not fail");
       },
     );
     emit(new ArrayBuffer(2));
-    await vi.waitFor(() => {
-      expect(failures).toEqual([1]);
-    });
+    const url = new URL(FakeWebSocket.sockets[0]?.url ?? "");
+    expect(url.searchParams.get("overview")).toBe("新サービス");
     await handle.stop();
   });
 });
