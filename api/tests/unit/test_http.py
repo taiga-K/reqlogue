@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -188,9 +190,8 @@ def test_transcription_stream_passes_the_overview(
         lambda _settings: recorder,
     )
     client = TestClient(create_app(settings))
-    with client.websocket_connect(
-        "/v1/transcription/stream?overview=%E6%96%B0%E3%82%B5%E3%83%BC%E3%83%93%E3%82%B9"
-    ) as socket:
+    with client.websocket_connect("/v1/transcription/stream?overview=leak") as socket:
+        socket.send_text(json.dumps({"type": "overview", "overview": "  新サービス  "}))
         socket.send_bytes(b"\x00\x01")
         assert socket.receive_json() == {"text": "stub transcript"}
     assert recorder.overviews == ["新サービス"]
@@ -232,5 +233,6 @@ def test_transcription_stream_closes_when_deltas_fail(
     client = TestClient(create_app(settings))
     with pytest.raises(WebSocketDisconnect) as caught:
         with client.websocket_connect("/v1/transcription/stream") as socket:
+            socket.send_bytes(b"\x00")
             socket.receive_text()
     assert caught.value.code == 1011

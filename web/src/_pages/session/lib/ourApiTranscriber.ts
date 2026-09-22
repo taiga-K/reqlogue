@@ -38,45 +38,54 @@ export function parseTranscriptResponse(value: unknown): string | null {
   return value.text;
 }
 
-export function transcriptionStreamUrl(overview: string): string {
+export function transcriptionStreamUrl(): string {
   const url = new URL(apiBaseUrl());
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   url.pathname = "/v1/transcription/stream";
   url.search = "";
-  const trimmed = overview.trim();
-  if (trimmed.length > 0) {
-    url.searchParams.set("overview", trimmed);
-  }
   return url.toString();
 }
 
 export function createOurApiTranscriber(overview: string): TranscriptionPort {
   return {
     async start(stream, onFinal, onFailure) {
-      const socket = new WebSocket(transcriptionStreamUrl(overview));
+      const socket = new WebSocket(transcriptionStreamUrl());
       socket.binaryType = "arraybuffer";
       const pending: ArrayBuffer[] = [];
       let finished = false;
       let failed = false;
+      let aborted = false;
+      let announced = false;
       const closed = new Promise<void>((resolve) => {
         socket.addEventListener("close", (event) => {
           finished = true;
           resolve();
-          if (event.code !== 1000) {
+          if (!aborted && event.code !== 1000) {
             fail();
           }
         });
       });
 
       function fail() {
-        if (failed) {
+        if (failed || aborted) {
           return;
         }
         failed = true;
         onFailure();
       }
 
+      function announce() {
+        if (announced || socket.readyState !== WebSocket.OPEN) {
+          return;
+        }
+        announced = true;
+        socket.send(
+          JSON.stringify({ type: "overview", overview: overview.trim() }),
+        );
+      }
+
       socket.addEventListener("open", () => {
+        announce();
         for (const pcm of pending) {
           socket.send(pcm);
         }
@@ -107,6 +116,7 @@ export function createOurApiTranscriber(overview: string): TranscriptionPort {
           return;
         }
         if (socket.readyState === WebSocket.OPEN) {
+          announce();
           socket.send(pcm);
           return;
         }
@@ -122,6 +132,7 @@ export function createOurApiTranscriber(overview: string): TranscriptionPort {
             return;
           }
           if (socket.readyState === WebSocket.CONNECTING) {
+            aborted = true;
             socket.close();
           }
           await closed;

@@ -42,13 +42,22 @@ class FakeWebSocket {
   send(data: ArrayBuffer | string) {
     if (typeof data === "string") {
       this.sentText.push(data);
-      this.close();
+      const payload = JSON.parse(data) as { type?: string };
+      if (payload.type === "stop") {
+        this.close();
+      }
       return;
     }
     this.sent.push(data);
   }
 
   close() {
+    if (this.readyState === FakeWebSocket.CONNECTING) {
+      this.readyState = FakeWebSocket.CLOSED;
+      this.emit("error", new Event("error"));
+      this.emit("close", new CloseEvent("close", { code: 1006 }));
+      return;
+    }
     this.readyState = FakeWebSocket.CLOSED;
     this.emit("close", new CloseEvent("close", { code: 1000 }));
   }
@@ -130,13 +139,10 @@ describe("apiBaseUrl", () => {
 });
 
 describe("transcriptionStreamUrl", () => {
-  it("uses a websocket and adds overview only when it is present", () => {
-    expect(transcriptionStreamUrl("")).toBe(
+  it("uses a websocket without putting the overview in the url", () => {
+    expect(transcriptionStreamUrl()).toBe(
       "ws://127.0.0.1:8000/v1/transcription/stream",
     );
-    const withOverview = new URL(transcriptionStreamUrl("新サービス"));
-    expect(withOverview.pathname).toBe("/v1/transcription/stream");
-    expect(withOverview.searchParams.get("overview")).toBe("新サービス");
   });
 });
 
@@ -205,10 +211,10 @@ describe("createOurApiTranscriber", () => {
     expect(failures).toEqual([1]);
   });
 
-  it("puts the meeting overview on the stream url", async () => {
+  it("sends the meeting overview before audio", async () => {
     vi.stubGlobal("WebSocket", FakeWebSocket);
     const emit = captureChunks();
-    const handle = await createOurApiTranscriber("新サービス").start(
+    const handle = await createOurApiTranscriber("  新サービス  ").start(
       {} as MediaStream,
       () => {},
       () => {
@@ -217,7 +223,10 @@ describe("createOurApiTranscriber", () => {
     );
     emit(new ArrayBuffer(2));
     const url = new URL(FakeWebSocket.sockets[0]?.url ?? "");
-    expect(url.searchParams.get("overview")).toBe("新サービス");
+    expect(url.search).toBe("");
+    expect(FakeWebSocket.sockets[0]?.sentText[0]).toBe(
+      JSON.stringify({ type: "overview", overview: "新サービス" }),
+    );
     await handle.stop();
   });
 
@@ -243,7 +252,10 @@ describe("createOurApiTranscriber", () => {
     await handle.stop();
     const socket = FakeWebSocket.sockets[0];
     expect(socket?.sent).toHaveLength(1);
-    expect(socket?.sentText).toEqual([JSON.stringify({ type: "stop" })]);
+    expect(socket?.sentText).toEqual([
+      JSON.stringify({ type: "overview", overview: "" }),
+      JSON.stringify({ type: "stop" }),
+    ]);
   });
 
   it("closes a socket that is still connecting", async () => {

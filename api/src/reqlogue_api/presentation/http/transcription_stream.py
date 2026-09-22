@@ -13,12 +13,28 @@ def origin_allowed(origin: str | None, allowed: tuple[str, ...]) -> bool:
     return origin in allowed
 
 
-def _is_stop(raw: str) -> bool:
+def _payload(raw: str) -> dict[str, object] | None:
     try:
-        payload = json.loads(raw)
+        value = json.loads(raw)
     except json.JSONDecodeError:
-        return False
-    return isinstance(payload, dict) and payload.get("type") == "stop"
+        return None
+    if isinstance(value, dict):
+        return value
+    return None
+
+
+def _kind(payload: dict[str, object]) -> str | None:
+    kind = payload.get("type")
+    if isinstance(kind, str):
+        return kind
+    return None
+
+
+def _overview_text(payload: dict[str, object]) -> str:
+    overview = payload.get("overview")
+    if isinstance(overview, str):
+        return overview.strip()
+    return ""
 
 
 async def stream_transcription(
@@ -30,16 +46,24 @@ async def stream_transcription(
         await websocket.close(code=1008)
         return
     await websocket.accept()
-    overview = websocket.query_params.get("overview", "").strip()
     try:
-        session = await transcriber.open_session(overview)
+        opened = await _open_live_session(websocket, transcriber)
+    except WebSocketDisconnect:
+        return
     except Exception:
         await websocket.close(code=1011)
         return
+    if opened is None:
+        with contextlib.suppress(Exception):
+            await websocket.close(code=1000)
+        return
+    session, pending_pcm = opened
 
     sender = asyncio.create_task(_send_deltas(websocket, session))
     failed = False
     try:
+        for chunk in pending_pcm:
+            await session.append(chunk)
         while True:
             receive = asyncio.create_task(websocket.receive())
             done, _pending = await asyncio.wait(
@@ -57,7 +81,7 @@ async def stream_transcription(
             if message["type"] == "websocket.disconnect":
                 break
             raw_text = message.get("text")
-            if isinstance(raw_text, str) and _is_stop(raw_text):
+            if isinstance(raw_text, str) and _kind(_payload(raw_text) or {}) == "stop":
                 break
             pcm = message.get("bytes")
             if isinstance(pcm, bytes) and len(pcm) > 0:
@@ -74,6 +98,29 @@ async def stream_transcription(
             failed = sender.exception() is not None
         with contextlib.suppress(Exception):
             await websocket.close(code=1011 if failed else 1000)
+
+
+async def _open_live_session(
+    websocket: WebSocket,
+    transcriber: Transcriber,
+) -> tuple[TranscriptionSession, list[bytes]] | None:
+    while True:
+        message = await websocket.receive()
+        if message["type"] == "websocket.disconnect":
+            return None
+        raw_text = message.get("text")
+        if isinstance(raw_text, str):
+            payload = _payload(raw_text) or {}
+            kind = _kind(payload)
+            if kind == "stop":
+                return None
+            overview = _overview_text(payload) if kind == "overview" else ""
+            session = await transcriber.open_session(overview)
+            return session, []
+        pcm = message.get("bytes")
+        if isinstance(pcm, bytes) and len(pcm) > 0:
+            session = await transcriber.open_session("")
+            return session, [pcm]
 
 
 async def _send_deltas(websocket: WebSocket, session: TranscriptionSession) -> None:
