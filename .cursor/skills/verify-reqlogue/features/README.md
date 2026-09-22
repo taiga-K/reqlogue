@@ -19,7 +19,7 @@ Primary surface: the Next.js app launched by `helpers/launch`. Secondary surface
 - Prefer ARIA roles and accessible names over CSS selectors or DOM position.
 - Treat every command as literal. Keep Japanese labels unchanged.
 - Run browser and HTTP recipes through `.cursor/skills/verify-reqlogue/helpers/drive <feature-id>`.
-- Starting a meeting from home clears every `reqlogue.meeting.*` key, then writes one new record. Do not reuse a previous session URL as if it still held data.
+- Submitting `次へ` on prepare clears every `reqlogue.meeting.*` key, then writes one new record. Do not reuse a previous session URL as if it still held data. `はじめる` only opens `/prepare` and does not mint a meeting.
 - Restore nothing in the browser after a mutation; the next home submit wipes prior meetings. Do not delete proof artifacts during cleanup.
 
 ## Proof and skip reporting
@@ -46,7 +46,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 ## Features
 
-- [Start a meeting from home](./home-start.md) covers the name field, blank and named submit, `/session/<uuid>`, and reload persistence.
-- [Session banner](./session-banner.md) covers the wordmark-only header, named heading, blank-name heading omission, and retired chrome.
+- [Start a meeting from home](./home-start.md) covers the home link, prepare fields, named submit on `次へ`, `/session/<uuid>`, and reload persistence.
+- [Session banner](./session-banner.md) covers the wordmark header, named heading, and retired chrome.
 - [Start and end meeting capture](./meeting-capture.md) covers `会議を開始` / `会議を終了`, stored stub transcript, and media-permission failures.
 - [Transcription API](./transcription-api.md) covers FastAPI `/health` and stub `POST /v1/transcription`.

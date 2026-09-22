@@ -4,13 +4,8 @@ const UUID_SESSION =
   /\/session\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 test("home start opens a named session banner", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill(
-    "新サービスの打ち合わせ",
-  );
-  await page.getByRole("button", { name: "はじめる" }).click();
+  await startNamedSession(page, "新サービスの打ち合わせ");
 
-  await expect(page).toHaveURL(UUID_SESSION);
   await expect(page).not.toHaveURL(/meetingName/);
 
   const banner = page.getByRole("banner");
@@ -21,12 +16,7 @@ test("home start opens a named session banner", async ({ page }) => {
 });
 
 test("named session banner shows wordmark and name only", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill(
-    "新サービスの打ち合わせ",
-  );
-  await page.getByRole("button", { name: "はじめる" }).click();
-  await expect(page).toHaveURL(UUID_SESSION);
+  await startNamedSession(page, "新サービスの打ち合わせ");
 
   const banner = page.getByRole("banner");
   await expect(banner.getByRole("img", { name: "reqlogue" })).toBeVisible();
@@ -40,28 +30,11 @@ test("named session banner shows wordmark and name only", async ({ page }) => {
   await expect(page.getByRole("button", { name: "マインドマップ" })).toBeVisible();
 });
 
-test("empty name still mints a session id", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "はじめる" }).click();
-
-  await expect(page).toHaveURL(UUID_SESSION);
-  await expect(page).not.toHaveURL(/meetingName/);
-  await expect(
-    page.getByRole("banner").getByRole("img", { name: "reqlogue" }),
-  ).toBeVisible();
-  await expect(page.getByRole("heading")).toHaveCount(0);
-});
-
 test("start meeting writes local transcript and end clears it", async ({
   page,
 }) => {
   await mockCaptureMedia(page);
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill(
-    "新サービスの打ち合わせ",
-  );
-  await page.getByRole("button", { name: "はじめる" }).click();
-  await expect(page).toHaveURL(UUID_SESSION);
+  await startNamedSession(page, "新サービスの打ち合わせ");
 
   await page.getByRole("button", { name: "会議を開始" }).click();
   await expect(page.getByRole("button", { name: "会議を終了" })).toBeVisible();
@@ -85,10 +58,7 @@ test("named meeting root stays the meeting name and sits near the canvas center"
   page,
 }) => {
   await mockCaptureMedia(page);
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill("test");
-  await page.getByRole("button", { name: "はじめる" }).click();
-  await expect(page).toHaveURL(UUID_SESSION);
+  await startNamedSession(page, "test");
 
   await page.getByRole("button", { name: "会議を開始" }).click();
   await expect
@@ -125,36 +95,12 @@ test("named meeting root stays the meeting name and sits near the canvas center"
   expect(await readMeetingRecords(page)).toContain("- 要件");
 });
 
-test("blank meeting name does not invent a mindmap title", async ({ page }) => {
-  await mockCaptureMedia(page);
-  await page.goto("/");
-  await page.getByRole("button", { name: "はじめる" }).click();
-  await expect(page).toHaveURL(UUID_SESSION);
-  await page.getByRole("button", { name: "会議を開始" }).click();
-  await expect
-    .poll(async () => readMeetingRecords(page))
-    .toContain("- 要件");
-  const records = await readMeetingRecords(page);
-  expect(records).toContain(`"# \u200b\\n\\n- 要件"`);
-  expect(records).not.toContain("# 会議");
-  await expect(page.getByRole("heading")).toHaveCount(0);
-  await expect(page.getByRole("main").getByRole("img").getByText("会議")).toHaveCount(
-    0,
-  );
-});
-
 test("starting a new meeting clears the previous record", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill("旧会議");
-  await page.getByRole("button", { name: "はじめる" }).click();
-  await expect(page).toHaveURL(UUID_SESSION);
+  await startNamedSession(page, "旧会議");
   await expect.poll(async () => readMeetingKeys(page)).toHaveLength(1);
   const firstKeys = await readMeetingKeys(page);
 
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill("新会議");
-  await page.getByRole("button", { name: "はじめる" }).click();
-  await expect(page).toHaveURL(UUID_SESSION);
+  await startNamedSession(page, "新会議");
   await expect(page.getByRole("heading", { name: "新会議" })).toBeVisible();
   const secondKeys = await readMeetingKeys(page);
   expect(secondKeys).toHaveLength(1);
@@ -163,12 +109,7 @@ test("starting a new meeting clears the previous record", async ({ page }) => {
 
 test("session rail opens the advice board", async ({ page }) => {
   await mockCaptureMedia(page);
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "今日の会議のなまえ" }).fill(
-    "新サービスの打ち合わせ",
-  );
-  await page.getByRole("button", { name: "はじめる" }).click();
-  await expect(page).toHaveURL(UUID_SESSION);
+  await startNamedSession(page, "新サービスの打ち合わせ");
 
   const mindmap = page.getByRole("button", { name: "マインドマップ" });
   const advice = page.getByRole("button", { name: "アドバイス" });
@@ -227,6 +168,14 @@ test("session rail opens the advice board", async ({ page }) => {
   await page.getByRole("button", { name: "会議を終了" }).click();
   await expect(page.getByRole("heading", { level: 3, name: "確認したい点" })).toHaveCount(0);
 });
+
+async function startNamedSession(page: Page, name: string) {
+  await page.goto("/");
+  await page.getByRole("link", { name: "はじめる" }).click();
+  await page.getByRole("textbox", { name: "会議名" }).fill(name);
+  await page.getByRole("button", { name: "次へ" }).click();
+  await expect(page).toHaveURL(UUID_SESSION);
+}
 
 async function mockCaptureMedia(page: Page) {
   await page.addInitScript(() => {

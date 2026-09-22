@@ -12,13 +12,13 @@ import {
   type AdviceColumn,
   type MeetingId,
 } from "@/entities/meeting";
+import { MeetingHeader } from "@/shared/ui/meeting-header";
 import { createAdviceUpdater } from "../lib/ourApiAdvice";
 import { createAdviceScheduler } from "../lib/adviceScheduler";
 import { createMindmapUpdater } from "../lib/ourApiMindmap";
 import { createMindmapScheduler } from "../lib/mindmapScheduler";
 import { pinMindmapRoot } from "../model/mindmapRoot";
 import { AdviceBoard } from "./AdviceBoard";
-import { SessionHeader } from "./SessionHeader";
 import { SessionMindmap } from "./SessionMindmap";
 import { SessionRail, type SessionPane } from "./SessionRail";
 import { StartMeetingControl } from "./StartMeetingControl";
@@ -112,7 +112,7 @@ export function SessionWorkspace({ meetingId }: SessionWorkspaceProps) {
 
   return (
     <>
-      <SessionHeader name={name} />
+      <MeetingHeader name={name} />
       <div className={styles["body"]}>
         <SessionRail pane={pane} onSelect={setPane} />
         <main className={styles["main"]}>

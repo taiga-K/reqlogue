@@ -10,6 +10,7 @@ export type MeetingId = string & { readonly [meetingIdBrand]: true };
 export type MeetingRecord = {
   readonly id: MeetingId;
   readonly name: string;
+  readonly overview: string;
   readonly transcript: string;
   readonly mindmapMarkdown: string;
   readonly sentTranscriptOffset: number;
@@ -38,10 +39,12 @@ export function mintMeetingId(
 export function createMeetingRecord(
   id: MeetingId,
   name: string,
+  overview = "",
 ): MeetingRecord {
   return {
     id,
     name,
+    overview,
     transcript: "",
     mindmapMarkdown: "",
     sentTranscriptOffset: 0,
@@ -82,6 +85,10 @@ export function parseMeetingRecord(
   if (!("transcript" in value) || typeof value.transcript !== "string") {
     return null;
   }
+  const overview =
+    "overview" in value && typeof value.overview === "string"
+      ? value.overview
+      : "";
   const mindmapMarkdown =
     "mindmapMarkdown" in value && typeof value.mindmapMarkdown === "string"
       ? value.mindmapMarkdown
@@ -89,6 +96,7 @@ export function parseMeetingRecord(
   return {
     id,
     name: value.name,
+    overview,
     transcript: value.transcript,
     mindmapMarkdown,
     sentTranscriptOffset: parseSentOffset(value),

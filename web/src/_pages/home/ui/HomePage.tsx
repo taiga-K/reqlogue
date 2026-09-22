@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { buttonVariants } from "@/shared/ui/button";
 import { HomeFlowArt } from "./HomeFlowArt";
 import { HomeHeader } from "./HomeHeader";
-import { MeetingNameForm } from "./MeetingNameForm";
 import styles from "./HomePage.module.css";
 
 export const metadata: Metadata = {
@@ -23,7 +25,16 @@ export function HomePage() {
             会議が終わるころには、要件のまとめができています。reqlogue
             を会議のとなりに置いて、はじめましょう。
           </p>
-          <MeetingNameForm />
+          <Link
+            href="/prepare"
+            className={buttonVariants({
+              size: "lg",
+              className: `${styles["start"]} h-[max(3rem,calc(4.9*var(--s)))] w-[calc(25.3*var(--s))] max-w-full rounded-full`,
+            })}
+          >
+            はじめる
+            <ArrowRight data-icon="inline-end" />
+          </Link>
         </section>
         <HomeFlowArt />
       </main>
