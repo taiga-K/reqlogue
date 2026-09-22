@@ -5,7 +5,7 @@ description: Drive the reqlogue Next.js web app (primary) and FastAPI transcript
 
 # Verify reqlogue
 
-reqlogue is a meeting-hearing assistant. A user names a meeting on the Next.js home page, lands on `/session/<uuid>`, then starts tab+mic capture. This skill drives that path. The primary surface is the web app at an isolated `127.0.0.1` port. On the live path the browser talks to FastAPI and never to OpenAI. The default launch sets `NEXT_PUBLIC_API_MOCKING=enabled`, so the browser uses the in-app stub and does not call FastAPI.
+reqlogue is a meeting-hearing assistant. A user chooses `はじめる` on the Next.js home page, names the meeting on `/prepare`, lands on `/session/<uuid>`, then starts tab+mic capture. This skill drives that path. The primary surface is the web app at an isolated `127.0.0.1` port. On the live path the browser talks to FastAPI and never to OpenAI. The default launch sets `NEXT_PUBLIC_API_MOCKING=enabled`, so the browser uses the in-app stub and does not call FastAPI.
 
 Read `features/README.md` before driving. Prove the mapped entry points for the feature you claim, not a convenient substitute.
 
@@ -79,8 +79,11 @@ Prefer these stable handles from the running UI and `web/e2e/*.spec.ts`:
 |---|---|
 | Home wordmark | `getByRole("img", { name: "reqlogue" })` inside `getByRole("banner")` |
 | Home headline | `getByRole("heading", { name: "話すことに、集中しよう。" })` |
-| Meeting name | `getByRole("textbox", { name: "今日の会議のなまえ" })` |
-| Start session | `getByRole("button", { name: "はじめる" })` |
+| Start prepare | `getByRole("link", { name: "はじめる" })` |
+| Prep headline | `getByRole("heading", { name: "会議の準備をしましょう" })` |
+| Meeting name | `getByRole("textbox", { name: "会議名" })` |
+| Meeting overview | `getByRole("textbox", { name: "会議の概要" })` |
+| Start session | `getByRole("button", { name: "次へ" })` |
 | Session URL | `/session/<uuid>` — must not contain `meetingName` |
 | Session name | banner `getByRole("heading", { name: "<typed name>" })` |
 | Start capture | `getByRole("button", { name: "会議を開始" })` |
@@ -89,7 +92,7 @@ Prefer these stable handles from the running UI and `web/e2e/*.spec.ts`:
 | API health | `GET $API_URL/health` |
 | API transcribe | `POST $API_URL/v1/transcription` with `Content-Type: application/octet-stream` |
 
-`はじめる` is enabled on a blank name. Submit mints a UUID with `crypto.randomUUID()`, writes `reqlogue.meeting.<id>` after clearing every other `reqlogue.meeting.*` key, and `router.push`es `/session/<id>`. Reloading that URL is the persistence check: `SessionWorkspace` rereads `localStorage` and the banner heading returns. The server snapshot is empty, so the heading is missing on the first paint; wait for it before asserting or screenshotting a named banner.
+`はじめる` is an enabled link on home and only opens `/prepare`. `次へ` stays disabled until the trimmed meeting name is non-empty. Overview may be empty. Submit mints a UUID with `crypto.randomUUID()`, writes `reqlogue.meeting.<id>` after clearing every other `reqlogue.meeting.*` key, and `router.push`es `/session/<id>`. Replacement of a previous meeting happens on `次へ`, not on `はじめる`. Reloading that URL is the persistence check: `SessionWorkspace` rereads `localStorage` and the banner heading returns. The server snapshot is empty, so the heading is missing on the first paint; wait for it before asserting or screenshotting a named banner. The session UI does not render the overview.
 
 Meeting capture needs the fake `getDisplayMedia` / `getUserMedia` streams from `web/e2e/session.spec.ts` (`helpers/drive meeting-capture` installs them). Without fakes the browser permission dialog blocks the agent. The session main column is empty: `stub transcript` is stored, not rendered. Visible proof is the button label flipping `会議を開始` ↔ `会議を終了`. Persistence proof is the `reqlogue.meeting.*` value containing `stub transcript`, then becoming empty after `会議を終了`.
 

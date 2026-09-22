@@ -1,0 +1,32 @@
+/* Image bottoms share one baseline. Ink padding is nearly equal, so the feet meet the notebook. */
+
+.scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.15 / 1;
+  min-width: 0;
+  overflow: visible;
+}
+
+.notebook,
+.mascot {
+  position: absolute;
+  display: block;
+  height: auto;
+  max-width: none;
+}
+
+.notebook {
+  left: 0;
+  bottom: 0;
+  width: 62%;
+  z-index: 1;
+}
+
+.mascot {
+  left: 34%;
+  /* Notebook ink sits higher in its box than the feet do, so lift the mascot. */
+  bottom: 2.65%;
+  width: 56%;
+  z-index: 2;
+}
