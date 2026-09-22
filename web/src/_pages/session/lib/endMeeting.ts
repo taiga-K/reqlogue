@@ -16,12 +16,12 @@ export async function endMeeting(
   meetingId: MeetingId,
   finishTranscription: () => Promise<void> = async () => {},
 ): Promise<EndMeetingResult> {
-  await finishTranscription();
-  const record = readMeeting(meetingId);
-  if (record === null) {
-    return { status: "nothing-to-end" };
-  }
   try {
+    await finishTranscription();
+    const record = readMeeting(meetingId);
+    if (record === null) {
+      return { status: "nothing-to-end" };
+    }
     const markdown = await createRequirementsGenerator()({
       meetingId: record.id,
       meetingName: record.name,

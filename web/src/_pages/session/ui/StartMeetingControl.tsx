@@ -32,6 +32,7 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
   const stopRef = useRef<(() => Promise<void>) | null>(null);
   const stoppingRef = useRef<Promise<void> | null>(null);
   const liveRef = useRef(false);
+  const endingRef = useRef(false);
   const unmountedRef = useRef(false);
 
   useEffect(() => {
@@ -114,12 +115,11 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
   }
 
   async function stop() {
+    endingRef.current = true;
     setPhase({ status: "ending" });
     const result = await endMeeting(meetingId, async () => {
       try {
         await releaseCapture();
-      } catch {
-        void 0;
       } finally {
         liveRef.current = false;
       }
@@ -132,9 +132,11 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
         router.push(`/session/${meetingId}/requirements`);
         return;
       case "failed":
+        endingRef.current = false;
         setPhase({ status: "unsummarized" });
         return;
       case "nothing-to-end":
+        endingRef.current = false;
         clearMeeting(meetingId);
         setPhase({ status: "idle" });
         return;
@@ -145,8 +147,12 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
     }
   }
 
+  function endInProgress(): boolean {
+    return endingRef.current;
+  }
+
   async function failRuntime() {
-    if (!liveRef.current) {
+    if (!liveRef.current || endInProgress()) {
       return;
     }
     liveRef.current = false;
@@ -155,7 +161,7 @@ export function StartMeetingControl({ meetingId }: StartMeetingControlProps) {
     } catch {
       void 0;
     } finally {
-      if (!unmountedRef.current) {
+      if (!unmountedRef.current && !endInProgress()) {
         setPhase({ status: "failed", reason: "transcribe-unavailable" });
       }
     }

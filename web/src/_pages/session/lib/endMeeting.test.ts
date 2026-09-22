@@ -44,6 +44,28 @@ describe("endMeeting", () => {
     expect(localStorage.getItem("reqlogue.meeting.meet-1")).toBeNull();
   });
 
+  it("keeps the meeting when transcription shutdown fails", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_MOCKING", "enabled");
+    const id = parseMeetingId("meet-1");
+    if (id === null) {
+      throw new Error("id");
+    }
+    writeMeeting(createMeetingRecord(id, "新サービスの打ち合わせ"));
+    appendMeetingTranscript(
+      id,
+      new Date("2026-09-21T16:01:00.000Z"),
+      "ログインはメールでやりたい",
+    );
+
+    const result = await endMeeting(id, () =>
+      Promise.reject(new Error("shutdown failed")),
+    );
+
+    expect(result).toEqual({ status: "failed" });
+    expect(readMeeting(id)?.transcript).toContain("ログインはメールでやりたい");
+    expect(readRequirements(id)).toBeNull();
+  });
+
   it("reads the transcript after in-flight transcription finishes", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MOCKING", "");
     const id = parseMeetingId("meet-1");

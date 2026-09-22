@@ -19,15 +19,34 @@
 }
 
 .document h3,
+.document h4,
+.document h5,
+.document h6,
 .document p,
 .document li {
   font-size: 1rem;
   line-height: 1.7;
 }
 
+.document h4,
+.document h5,
+.document h6 {
+  margin: 1.25rem 0 0.5rem;
+}
+
 .document p,
-.document ul {
+.document ul,
+.document ol {
   margin: 0.5rem 0 0;
+}
+
+.document pre {
+  margin: 0.75rem 0 0;
+  overflow: auto;
+}
+
+.document a {
+  text-decoration: underline;
 }
 
 .missing {
