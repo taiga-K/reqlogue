@@ -23,7 +23,7 @@
     "@stylexjs/stylex": "^0.19.1",
     "@tailwindcss/postcss": "^4.3.3",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.3.0",
+    "cn": "^0.4.0",
     "d3-zoom": "^3.0.0",
     "lucide-react": "^1.47.0",
     "markmap-lib": "^0.18.12",
