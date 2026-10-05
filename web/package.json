@@ -58,7 +58,7 @@
     "msw": "^2.15.0",
     "msw-storybook-addon": "^3.0.3",
     "playwright": "^1.63.0",
-    "steiger": "^0.6.0",
+    "steiger": "^0.7.0",
     "storybook": "^10.6.0",
     "typescript": "^5",
     "typescript-eslint": "^8.70.0",
