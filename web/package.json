@@ -61,7 +61,7 @@
     "steiger": "^0.6.0",
     "storybook": "^10.6.0",
     "typescript": "^5",
-    "typescript-eslint": "^8.70.0",
+    "typescript-eslint": "^8.71.0",
     "vitest": "^4.1.11"
   },
   "packageManager": "pnpm@10.33.3",
